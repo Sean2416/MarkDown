@@ -1,0 +1,1230 @@
+- f you want to implement all the audit interfaces (creation, modification and deletion) for an entity, you can directly implement **IFullAudited** since it inherits from the others:****.Application** project is for application layer (DTOs, application services...)
+- **.EntityFramework** project is for EF Core integration (abstracts EF Core from other layers).
+- **.Web** project is for ASP.NET MVC layer.
+- **.Tests** project is for unit and integration tests (up to application layer, excluding web layer)
+- **.Web.Tests** project is for ASP.NET Core integrated tests (complete integration test including the web layer).
+
+# Dependency Injection
+
+- 在沒有使用 DI Framework 的情況下，假設在 UserController 要呼叫 UserLogic，會直接在 UserController 實例化 UserLogic，如下：
+
+  ```C#
+  public class MyDependency
+  {
+      public MyDependency()
+      {
+      }
+  
+      public Task WriteMessage(string message)
+      {
+          Console.WriteLine(
+              $"MyDependency.WriteMessage called. Message: {message}");
+  
+          return Task.FromResult(0);
+      }
+  }
+  
+  public class IndexModel : PageModel
+  {
+      MyDependency _dependency = new MyDependency();
+  
+      public async Task OnGetAsync()
+      {
+          await _dependency.WriteMessage(
+              "IndexModel.OnGetAsync created this message.");
+      }
+  }
+  ```
+
+- 上述程式碼可正常運作，但會出現下列問題
+
+  - 若要將 `MyDependency` 取代為不同的實作，必須修改該類別。
+  - 實作`MyDependency` 的地方越多，未來在置換或維護上越不便。
+  - 實作難以進行單元測試。 應用程式應該使用模擬 (Mock) 或虛設常式 (Stub) `MyDependency` 類別，這在使用此方法時無法使用。
+
+- 相依性插入可透過下列方式解決這些問題：
+
+  - 使用介面或基底類別來將相依性資訊抽象化
+  - 在服務容器中註冊相依性。 ASP.NET Core 提供內建服務容器 [IServiceProvider](https://docs.microsoft.com/dotnet/api/system.iserviceprovider)。 服務會在應用程式的 `Startup.ConfigureServices` 方法中註冊
+  - 將服務「插入」到服務使用位置之類別的建構函式。 架構會負責建立相依性的執行個體，並在不再需要時將它捨棄。
+
+- 建構抽象類別
+
+  ```C#
+  public interface IMyDependency
+  {
+      Task WriteMessage(string message);
+  }
+  ```
+
+- 實作類別
+
+  ```C#
+  public class MyDependency : IMyDependency
+  {
+      private readonly ILogger<MyDependency> _logger;
+  
+      public MyDependency(ILogger<MyDependency> logger)
+      {
+          _logger = logger;
+      }
+  
+      public Task WriteMessage(string message)
+      {
+          _logger.LogInformation(
+              "MyDependency.WriteMessage called. Message: {MESSAGE}", 
+              message);
+  
+          return Task.FromResult(0);
+      }
+  }
+  ```
+
+- 注入
+
+  ```C#
+  public void ConfigureServices(IServiceCollection services)
+  {
+      services.AddRazorPages();
+  
+      services.AddScoped<IMyDependency, MyDependency>();
+      services.AddTransient<IOperationTransient, Operation>();
+      services.AddScoped<IOperationScoped, Operation>();
+      services.AddSingleton<IOperationSingleton, Operation>();
+      services.AddSingleton<IOperationSingletonInstance>(new Operation(Guid.Empty));
+  
+      // OperationService depends on each of the other Operation types.
+      services.AddTransient<OperationService, OperationService>();
+      
+      //沒有使用介面宣告時
+      services.AddScoped<UserManager>();
+      
+      //宣告實體 帶入參數
+       services.AddScoped(provider => new UserManager(configManager.IdSvrConfig));
+  }
+  ```
+
+## lifetimes
+
+- **Transient**: 每次注入時，都重新 `new` 一個新的實例。
+- **Scoped**: 每個 **Request** 都重新 `new` 一個新的實例，同一個 **Request** 不管經過多少個 Pipeline 都是用同一個實例。上例所使用的就是 **Scoped**。
+- **Singleton**: 被實例化後就不會消失，程式運行期間只會有一個實例。
+
+![[鐵人賽 Day04] ASP.NET Core 2 系列 - 依賴注入(Dependency Injection) - 實例產生動畫](https://blog.johnwu.cc/images/pasted-209.gif)
+
+## View
+
+- View 注入 Service 的方式，直接在 `*.cshtml` 使用 `@inject`：
+
+  ```C#
+  @using MyWebsite
+  
+  @inject ISampleTransient transient
+  @inject ISampleScoped scoped
+  @inject ISampleSingleton singleton
+  
+  <table border="1">
+      <tr><td colspan="3">Cotroller</td></tr>
+      <tr><td>Lifetimes</td><td>Id</td><td>Hash Code</td></tr>
+      <tr><td>Transient</td><td>@ViewBag.TransientId</td><td>@ViewBag.TransientHashCode</td></tr>
+      <tr><td>Scoped</td><td>@ViewBag.ScopedId</td><td>@ViewBag.ScopedHashCode</td></tr>
+      <tr><td>Singleton</td><td>@ViewBag.SingletonId</td><td>@ViewBag.SingletonHashCode</td></tr>
+  </table>
+  <hr />
+  <table border="1">
+      <tr><td colspan="3">View</td></tr>
+      <tr><td>Lifetimes</td><td>Id</td><td>Hash Code</td></tr>
+      <tr><td>Transient</td><td>@transient.Id</td><td>@transient.GetHashCode()</td></tr>
+      <tr><td>Scoped</td><td>@scoped.Id</td><td>@scoped.GetHashCode()</td></tr>
+      <tr><td>Singleton</td><td>@singleton.Id</td><td>@singleton.GetHashCode()</td></tr>
+  </table>
+  ```
+
+## Service
+
+```C#
+public class CustomService
+{
+    public ISample Transient { get; private set; }
+    public ISample Scoped { get; private set; }
+    public ISample Singleton { get; private set; }
+
+    public CustomService(ISampleTransient transient,
+        ISampleScoped scoped,
+        ISampleSingleton singleton)
+    {
+        Transient = transient;
+        Scoped = scoped;
+        Singleton = singleton;
+    }
+}
+```
+
+
+
+# Middleware
+
+- ASP.NET Core 在 Middleware 的官方說明中，使用了 Pipeline 這個名詞，意旨 Middleware 像水管一樣可以串聯在一起，所有的 Request 及 Response 都會層層經過這些水管。
+
+  ![[鐵人賽 Day03] ASP.NET Core 2 系列 - Middleware - 概念](https://blog.johnwu.cc/images/i03-1.png)
+
+  ![[鐵人賽 Day03] ASP.NET Core 2 系列 - Middleware](https://blog.johnwu.cc/images/pasted-114.gif)
+
+## App.Use
+
+- Middleware 的註冊方式是在 *Startup.cs* 的 `Configure` 對 `IApplicationBuilder` 使用 `Use` 方法註冊。
+  大部分擴充的 Middleware 也都是以 **Use** 開頭的方法註冊，例如：
+  - **UseMvc()** ：MVC 的 Middleware
+  - **UseRewriter()** ：URL rewriting 的 Middleware
+
+```C#
+public class Startup
+{
+    // ...
+    public void Configure(IApplicationBuilder app)
+    {
+        app.Use(async (context, next) => 
+        {
+            await context.Response.WriteAsync("First Middleware in. \r\n");
+            await next.Invoke();
+            await context.Response.WriteAsync("First Middleware out. \r\n");
+        });
+
+        app.Use(async (context, next) => 
+        {
+            await context.Response.WriteAsync("Second Middleware in. \r\n");
+            await next.Invoke();
+            await context.Response.WriteAsync("Second Middleware out. \r\n");
+        });
+
+        app.Use(async (context, next) => 
+        {
+            await context.Response.WriteAsync("Third Middleware in. \r\n");
+            // 水管阻塞，封包不往後送
+            //await next.Invoke();
+            await context.Response.WriteAsync("Third Middleware out. \r\n");
+        });
+
+        app.Run(async (context) =>
+        {
+            await context.Response.WriteAsync("Hello World! \r\n");
+        });
+    }
+}
+
+/*
+First Middleware in. 
+Second Middleware in. 
+Second Middleware out. 
+First Middleware out. 
+*/
+```
+
+## App.Run
+
+- `Run` 是 Middleware 的最後一個行為，以上面圖例來說，就是最末端的 Action。它不像 `Use` 能串聯其他 Middleware，但 `Run` 還是能完整的使用 Request 及 Response。
+
+## App.Map
+
+- `Map` 是能用來處理一些簡單路由的 Middleware，可依照不同的 URL 指向不同的 `Run` 及註冊不同的 `Use`。
+
+```C#
+public class Startup
+{
+    // ...
+    public void Configure(IApplicationBuilder app)
+    {
+        app.Use(async (context, next) => 
+        {
+            await context.Response.WriteAsync("First Middleware in. \r\n");
+            await next.Invoke();
+            await context.Response.WriteAsync("First Middleware out. \r\n");
+        });
+
+        //進到 http://localhost:5000/second 才會執行
+        app.Map("/second", mapApp =>
+        {
+            mapApp.Use(async (context, next) => 
+            {
+                await context.Response.WriteAsync("Second Middleware in. \r\n");
+                await next.Invoke();
+                await context.Response.WriteAsync("Second Middleware out. \r\n");
+            });
+            mapApp.Run(async context =>
+            {
+                await context.Response.WriteAsync("Second. \r\n");
+            });
+        });
+
+        app.Run(async context =>
+        {
+            await context.Response.WriteAsync("Hello World! \r\n");
+        });
+    }
+}
+
+/*
+https://localhost:5001/
+    First Middleware in. 
+    Hello World! 
+    First Middleware out. 
+
+https://localhost:5001/second
+    First Middleware in. 
+    Second Middleware in. 
+    Second. 
+    Second Middleware out. 
+    First Middleware out. 
+*/
+```
+
+
+
+## Extract Middleware
+
+- 新增類別檔，將各Middleware獨立出來
+
+```C#
+//FirstMiddleware.cs
+public class FirstMiddleware
+{
+    private readonly RequestDelegate _next;
+
+    public FirstMiddleware(RequestDelegate next)
+    {
+        _next = next;
+    }
+
+    public async Task Invoke(HttpContext context)
+    {
+        await context.Response.WriteAsync($"{nameof(FirstMiddleware)} in. \r\n");
+
+        await _next(context);
+
+        await context.Response.WriteAsync($"{nameof(FirstMiddleware)} out. \r\n");
+    }
+}
+```
+
+### 全域註冊
+
+- 在 `Startup.Configure` 註冊 Middleware 就可以套用到所有的 Request。如下：
+
+```C#
+public class Startup
+{
+    // ...
+    public void Configure(IApplicationBuilder app)
+    {
+        app.UseMiddleware<FirstMiddleware>();
+        // ...
+    }
+}
+```
+
+### 區域註冊
+
+- Middleware 也可以只套用在特定的 Controller 或 Action。註冊方式如下：
+
+```C#
+[MiddlewareFilter(typeof(FirstMiddleware))]
+public class HomeController : Controller
+{
+    // ...
+
+    [MiddlewareFilter(typeof(SecondMiddleware))]
+    public IActionResult Index()
+    {
+        // ...
+    }
+}
+```
+
+### Extensions
+
+- 建立IApplicationBuilder Extension Method
+
+  ```C#
+  // Extensions\CustomMiddlewareExtensions.cs
+  public static class CustomMiddlewareExtensions
+  {
+      public static IApplicationBuilder UseFirstMiddleware(this IApplicationBuilder builder)
+      {
+          return builder.UseMiddleware<FirstMiddleware>();
+      }
+  }
+  ```
+
+  ```C#
+  public class Startup
+  {
+      // ...
+      public void Configure(IApplicationBuilder app)
+      {
+          app.UseFirstMiddleware();
+          // ...
+      }
+  }
+  ```
+
+  
+
+
+
+# appsettings.json
+
+1. 若執行環境為 *Production* ，只讀 *appsettings.json* 。
+
+2. 若執行環境為 *Development* ，先讀取 *appsettings.json* 再讀取 *appsettings.Development.json* 。並合併兩檔的組態。若組態項目重複，則以後來者覆蓋先前設定，亦即以 *appsettings.Development.json* 為準。
+
+3. #### 如何決定執行環境
+
+   - *launchSettings.json* 內 **ASPNETCORE_ENVIRONMENT**值
+   - 如果沒有指定 ASPNETCORE_ENVIRONMENT 環境變數，則預設的執行環境是 *Production* 
+
+
+
+
+
+# Swagger
+
+1. 安裝套件 `Swashbuckle.AspNetCore` 
+
+   `dotnet add package Swashbuckle.AspNetCore`
+
+2. 將 Swagger 產生器新增至 `Startup.ConfigureServices` 
+
+3. 在 `Startup.Configure` 方法中，啟用中介軟體為產生的 JSON 文件和 Swagger UI 提供服務
+
+   ```c#
+   public void ConfigureServices(IServiceCollection services)
+   {
+       services.AddDbContext<TodoContext>(opt =>
+           opt.UseInMemoryDatabase("TodoList"));
+       services.AddControllers();
+   
+       // Register the Swagger generator, defining 1 or more Swagger documents
+       services.AddSwaggerGen(c =>
+       {
+           c.SwaggerDoc("v1", new OpenApiInfo { Title = "My API", Version = "v1" });
+       });
+   }
+   
+   public void Configure(IApplicationBuilder app)
+   {
+       if (env.IsDevelopment())
+       {
+           app.UseDeveloperExceptionPage();
+           app.UseSwagger();
+           app.UseSwaggerUI(c =>
+           {
+             c.SwaggerEndpoint(
+              url: "/swagger/v1/swagger.json",
+              name: "RESTful API v1.0.0"
+             );
+            });
+       }
+   
+       app.UseRouting();
+       app.UseEndpoints(endpoints =>
+       {
+           endpoints.MapControllers();
+       });
+   }
+   ```
+
+   
+
+4. 您可以在 `http://localhost:<port>/swagger` 找到 Swagger UI
+
+![1583409797013](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1583409797013.png)
+
+
+
+## 自訂與擴充
+
+### API 資訊與描述
+
+- 傳遞至 `AddSwaggerGen` 方法的組態動作會新增作者、授權和描述等資訊
+
+```C#
+// Register the Swagger generator, defining 1 or more Swagger documents
+services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Version = "v1",
+        Title = "ToDo API",
+        Description = "A simple example ASP.NET Core Web API",
+        TermsOfService = new Uri("https://example.com/terms"),
+        Contact = new OpenApiContact
+        {
+            Name = "Shayne Boyer",
+            Email = string.Empty,
+            Url = new Uri("https://twitter.com/spboyer"),
+        },
+        License = new OpenApiLicense
+        {
+            Name = "Use under LICX",
+            Url = new Uri("https://example.com/license"),
+        }
+    });
+});
+```
+
+![1583409902625](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1583409902625.png)
+
+
+
+## XML 註解
+
+1. 打開 `*.csproj`，在 `<Project />` 區塊中插入以下程式碼：
+
+   ```C#
+   <PropertyGroup>
+     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+     <NoWarn>$(NoWarn);1591</NoWarn>
+   </PropertyGroup>
+   ```
+
+   
+
+2. 調整 `startup.ConfigureServices`
+
+   ```C#
+   public void ConfigureServices(IServiceCollection services)
+   {
+       services.AddDbContext<TodoContext>(opt =>
+           opt.UseInMemoryDatabase("TodoList"));
+       services.AddControllers();
+   
+       // Register the Swagger generator, defining 1 or more Swagger documents
+       services.AddSwaggerGen(c =>
+       {
+           c.SwaggerDoc("v1", new OpenApiInfo
+           {
+               Version = "v1",
+               Title = "ToDo API",
+               Description = "A simple example ASP.NET Core Web API",
+               TermsOfService = new Uri("https://example.com/terms"),
+               Contact = new OpenApiContact
+               {
+                   Name = "Shayne Boyer",
+                   Email = string.Empty,
+                   Url = new Uri("https://twitter.com/spboyer"),
+               },
+               License = new OpenApiLicense
+               {
+                   Name = "Use under LICX",
+                   Url = new Uri("https://example.com/license"),
+               }
+           });
+   
+           // Set the comments path for the Swagger JSON and UI.
+           var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+           var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+           c.IncludeXmlComments(xmlPath);
+       });
+   }
+   ```
+
+### 加入 `<summary>` 文件註解標籤
+
+```C#
+/// <summary>
+/// Deletes a specific TodoItem.
+/// </summary>
+```
+
+![顯示 XML 註解 'Deletes a specific TodoItem.' 的 Swagger UI](https://docs.microsoft.com/zh-tw/aspnet/core/tutorials/web-api-help-pages-using-swagger/_static/triple-slash-comments.png?view=aspnetcore-3.1)
+
+### 加入 `<remarks>`
+
+```C#
+/// <remarks>
+/// Sample request:
+///
+///     POST /Todo
+///     {
+///        "id": 1,
+///        "name": "Item1",
+///        "isComplete": true
+///     }
+///
+/// </remarks>
+```
+
+![顯示額外註解的 Swagger UI](https://docs.microsoft.com/zh-tw/aspnet/core/tutorials/web-api-help-pages-using-swagger/_static/xml-comments-extended.png?view=aspnetcore-3.1)
+
+### 定義回傳格式為 `application/json`
+
+- 將 `[Produces("application/json")]` 屬性新增至 API Controller
+
+```C#
+[Produces("application/json")]
+[Route("api/[controller]")]
+[ApiController]
+public class ControlTypeController : Controller
+{
+}
+```
+
+![含有預設回應內容類型的 Swagger UI](https://docs.microsoft.com/zh-tw/aspnet/core/tutorials/web-api-help-pages-using-swagger/_static/json-response-content-type.png?view=aspnetcore-3.1)
+
+### 描述回傳型別
+
+- 描述回傳狀態碼對應內容
+
+```C#
+/// <summary>
+/// Creates a TodoItem.
+/// </summary>
+/// <param name="item"></param>
+/// <returns>A newly created TodoItem</returns>
+/// <response code="201">Returns the newly created item</response>
+/// <response code="400">If the item is null</response>            
+[HttpPost]
+[ProducesResponseType(typeof(IEnumerable<ControlType>), 200)]
+[ProducesResponseType(typeof(string), 400)]
+public ActionResult<TodoItem> Create(TodoItem item)
+{
+    _context.TodoItems.Add(item);
+    _context.SaveChanges();
+
+    return CreatedAtRoute("GetTodo", new { id = item.Id }, item);
+}
+```
+
+![1583411488210](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1583411488210.png)
+
+### Model定義
+
+- 支援 [Required]、[StringLength]、[Range(1, 100)]
+- 某些 Attribute 需要透過滑鼠事件才會呈現，例如：[StringLength]
+
+```C#
+/// <summary>
+///     會員
+/// </summary>
+public class Member 
+{
+     /// <summary>
+        ///     編碼
+        /// </summary>
+        [Column("id")]
+        public Guid Id { get; set; }
+
+        /// <summary>
+        ///  ControlTypeCode
+        /// </summary>
+        [Column("control_type_code")]
+        [Required]
+        public string ControlTypeCode { get; set; }
+
+        /// <summary>
+        ///     姓名
+        /// </summary>
+        [StringLength(100)]
+        [Column("name")]
+        public string Name { get; set; }
+ 
+}
+```
+
+![1583484527638](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1583484527638.png)
+
+
+
+### Swashbuckle.AspNetCore.Filters
+
+- #### 建立Request 及 Response Example
+
+1. Install the [NuGet package](https://www.nuget.org/packages/Swashbuckle.AspNetCore.Filters/)
+
+2. In the *ConfigureServices* method of *Startup.cs*, inside your `AddSwaggerGen` call, enable whichever filters you need
+
+   ```C#
+   public void ConfigureServices(IServiceCollection services)
+   {
+    services.AddSwaggerGen(c =>
+    {
+      //[SwaggerRequestExample] & [SwaggerResponseExample]
+      // version < 3.0 like this: c.OperationFilter<ExamplesOperationFilter>(); 
+      // version 3.0 like this: c.AddSwaggerExamples(services.BuildServiceProvider());
+      // version > 4.0 like this:
+      c.ExampleFilters();
+        
+   	//.......
+    });
+    //將參考範例加入介面呈現內容中
+    services.AddSwaggerExamplesFromAssemblyOf<Startup>();
+   }
+   ```
+
+
+
+#### Request examples
+
+1. 實作 `IExamplesProvider<T>`
+
+   ```C#
+   // SwagExample/ControlTypeItemExample
+   
+   public class ControlTypeItemExample : IExamplesProvider<ControlTypeItem>
+       {
+           public ControlTypeItem GetExamples()
+           {
+               return new ControlTypeItem
+               {
+                   ControlTypeCode = "Test1",
+                   Name = "測試明細123",
+                   Status = 1,
+                   SiteCode = "CW01"
+               };
+           }
+       }
+   ```
+
+   
+
+2. use the `SwaggerRequestExample` attribute
+
+   ```C#
+   [SwaggerRequestExample(typeof(ControlTypeItem), typeof(ControlTypeItemExample))]
+   public async Task<IActionResult> Post(ControlTypeItem entity)
+   {
+       try
+       {
+           entity.Id = Guid.NewGuid();
+   
+           var affected = await _db.Query
+           (
+               ueryHelper.GetTableName<ControlTypeItem>())
+               .InsertAsync(QueryHelper.Map(entity)
+            );
+   
+           return Ok(entity);
+       }
+       catch (Exception e)
+       {
+           return BadRequest(e.Message);
+       }
+    }
+   ```
+
+   
+
+3. #### List Request examples
+
+   ```C#
+    public class ControlTypeExample : IExamplesProvider<List<ControlType>>
+       {
+           public List<ControlType> GetExamples()
+           {
+               return new List<ControlType>
+               {
+                   new ControlType { Code = "AA", Name = "Test Country" },
+                   new ControlType { Code = "BB", Name = "And another" }
+               };
+           }
+       }
+   ```
+
+   ```C#
+   [SwaggerRequestExample(typeof(ControlType), typeof(ControlTypeExample), jsonConverter: typeof(StringEnumConverter))]
+   public async Task<IActionResult> Post(List<ControlType> entityList)
+   {
+       try
+       {
+           foreach (var entity in entityList)
+           {
+               entity.Id = Guid.NewGuid();
+   
+               await _db.Query(
+                   QueryHelper.GetTableName<ControlType>()).
+                   InsertAsync(QueryHelper.Map(entity));
+           }
+   
+           return Ok(entityList);
+       }
+       catch (Exception e)
+       {
+           return BadRequest(e.Message);
+       }
+   }
+   ```
+
+   ![1583499292771](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1583499292771.png)
+
+#### Response examples
+
+```C#
+ [SwaggerResponse(200, "The list of ControlType", typeof(IEnumerable<ControlType>))]
+ [SwaggerResponseExample(200, typeof(ControlTypeExample))]
+ [SwaggerResponse(400, type: typeof(string))]
+ public async Task<IActionResult> Get()
+ {
+     try
+     {
+         var result = await _db.FromQuery(
+             new Query(QueryHelper.GetTableName<ControlType>())
+         ).GetAsync<ControlType>();
+
+         return Ok(result.ToList());
+     }
+     catch (Exception e)
+     {
+         return BadRequest(e.Message);
+     }
+ }
+```
+
+![1583499476251](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1583499476251.png)
+
+
+
+# ASP.Net Boilerplate
+
+ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
+
+- **展現層（****Presentation**）：提供一個使用者介面，實現使用者交交互操作。
+
+- **應用層（****Application**）：進行展現層與領域層之間的協調，協調業務物件來執行特定的應用程式的任務。它不包含業務邏輯。
+
+- **領域層（****Domain**）：包括業務物件和業務規則，這是應用程式的核心層。
+
+- **基礎設施層（****Infrastructure**）：提供通用技術來支援更高的層。例如基礎設施層的倉儲(Repository)可通過ORM來實現資料庫交互。
+
+- **根據實際需要，可能會有額外添加的層。例如：**分散式服務層（**Distributed Service**）：用於公開應用程式接口供遠端用戶端調用。比如通過ASP.NET Web API或WCF來實現。這些都是常見的以領域為中心的分層體系結構。不同的項目在實現上可能會有細微的差別。
+
+  ![img](file:///C:/Users/6591/AppData/Local/Temp/msohtmlclip1/01/clip_image002.gif)
+
+  ![Startup template projects](https://raw.githubusercontent.com/aspnetboilerplate/aspnetboilerplate/master/doc/WebSite/Articles/Introduction-With-AspNet-Core-And-Entity-Framework-Core-Part-1/Template-Projects.png)
+
+- **.Application**
+  應用服務層：給表現層調用的服務與資料傳輸物件(DTO)
+
+- **.Core** *domain/business layer*
+  領域核心層：領域驅動設計(DDD)核心，內含***實體(Entity)***、***倉儲介面(Repository)***、***領域事件***、***工作單元 ***與***領域服務***
+
+- **.EntityFramework**
+  基礎設施層：EF框架、DbContext、實作倉儲介面、Migration資料庫遷移內含Seed預設資料列產生作業
+
+- **.Web** project is for ASP.NET MVC layer.
+
+- **.Tests** project is for unit and integration tests (up to application layer, excluding web layer)
+
+- **.Web.Tests** project is for ASP.NET Core integrated tests (complete integration test including the web layer).
+
+
+
+## 轉換MySQL DB
+
+1. 修正 `.web`專案 `appsettings`內`ConnectionStrings` 
+
+   ` "Default": "Server=localhost;Database=ABPMysqlDb;Uid=root;Pwd=root;"`
+
+2. 調整`.EntityFrameworkCore` Package
+
+   - 移除`.Server`相關套件
+
+   - 安裝[`Pomelo.EntityFrameworkCore.MySql`](https://www.nuget.org/packages/Pomelo.EntityFrameworkCore.MySql/) 
+
+   - 調整` ~DbContextConfigurer.cs`
+
+     ```C#
+     // dbContextOptions.UseSqlServer(connectionString);
+     //  TO
+     dbContextOptions.UseMySql(connectionString);
+     ```
+
+3. 移除`.EntityFrameworkCore`舊有Migrations
+
+4. Open **Package Manager Console** and select the ***.EntityFrameworkCore** project.
+
+5. Run the `add-migration Initial_Migration` command
+
+6. Run the `update-database` command
+
+
+
+## Entity
+
+### ID
+
+- 類別Entity繼承後會自動含有一個資料型態為int的ID屬性，該類別還有一個泛型版本Entity<T>可以繼承
+
+### Auditing
+
+- ABP還提供了IHasCreationTime這個介面來讓我們統一所有會使用到建立時間這個屬性的實體，藉此統一該屬性名稱為CreationTime 
+
+  ```C#
+  public interface IHasCreationTime
+  {
+      DateTime CreationTime { get; set; }
+  }
+  ```
+
+- **ICreationAudited** extends IHasCreationTime by adding **CreatorUserId**
+
+  ```C#
+  public interface ICreationAudited : IHasCreationTime
+  {
+      long? CreatorUserId { get; set; }
+  }
+  ```
+
+- modifications
+
+  - ASP.NET Boilerplate automatically sets these properties when updating an entity. You just have to define them for your entity.
+
+  ```C#
+  public interface IHasModificationTime
+  {
+      DateTime? LastModificationTime { get; set; }
+  }
+  
+  public interface IModificationAudited : IHasModificationTime
+  {
+      long? LastModifierUserId { get; set; }
+  }
+  ```
+
+- If you want to implement all of the audit properties, you can directly implement the **IAudited** interface:
+
+  ```C#
+  public interface IAudited : ICreationAudited, IModificationAudited
+  {
+  
+  }
+  ```
+
+- 可以直接繼承`**AuditedEntity**`包含了上述欄位內容
+
+  ```C#
+  using Abp.Domain.Entities;
+  using Abp.Domain.Entities.Auditing;
+  using System;
+  using System.ComponentModel.DataAnnotations.Schema;
+  
+  namespace ABPMysql.Entities
+  {
+      [Table("AppBooks")]
+      public class Book : AuditedEntity<Guid>, ISoftDelete
+      {
+          public string Name { get; set; }
+  
+          public BookType Type { get; set; }
+  
+          public DateTime PublishDate { get; set; }
+  
+          public float Price { get; set; }
+  
+          public virtual bool IsDeleted { get; set; }
+  
+          protected Book()
+          {
+  
+          }
+  
+          public Book(string name, BookType type, DateTime publishDate, float price)
+          {
+              Name = name;
+              Type = type;
+              PublishDate = publishDate;
+              Price = price;
+              CreationTime = DateTime.Now;
+              IsDeleted = false;
+          }
+      }
+     
+  }
+  
+  ```
+
+#### Soft Delete
+
+- 透過 `IsDeleted` 欄位標註資料型態而非真的刪除
+
+- Soft delete is a commonly used pattern to mark an Entity as deleted instead of actually deleting it from database. For instance, you may not want to hard delete a User from the database since it has many relations to other tables
+
+- ASP.NET Boilerplate implements the soft delete pattern out-of-the-box. When a soft-delete entity is being deleted, ASP.NET Boilerplate detects this, prevents deleting, sets IsDeleted as true, and then updates the entity in the database. It also does not retrieve (select) soft deleted entities from the database by automatically filtering them.
+
+  ```C#
+  public interface ISoftDelete
+  {
+      bool IsDeleted { get; set; }
+  }
+  ```
+
+- **IDeletionAudited**
+
+  ```C#
+  public interface IDeletionAudited : ISoftDelete
+  {
+      long? DeleterUserId { get; set; }
+  
+      DateTime? DeletionTime { get; set; }
+  }
+  ```
+
+- f you want to implement all the audit interfaces (creation, modification and deletion) for an entity, you can directly implement **IFullAudited** since it inherits from the others:
+
+  ```C#
+  public interface IFullAudited : IAudited, IDeletionAudited
+  {
+  
+  }
+  ```
+
+- 可以繼承`FullAuditedEntity `包含所有 `Auditing`內容
+
+  ```C#
+  using Abp.Domain.Entities;
+  using Abp.Domain.Entities.Auditing;
+  using System;
+  using System.ComponentModel.DataAnnotations.Schema;
+  
+  namespace ABPMysql.Entities
+  {
+      [Table("AppBooks")]
+      public class Book : FullAuditedEntity<Guid>, ISoftDelete
+      {
+          public string Name { get; set; }
+  
+          public BookType Type { get; set; }
+  
+          public DateTime PublishDate { get; set; }
+  
+          public float Price { get; set; }
+  
+          protected Book()
+          {
+  
+          }
+  
+          public Book(string name, BookType type, DateTime publishDate, float price)
+          {
+              Name = name;
+              Type = type;
+              PublishDate = publishDate;
+              Price = price;
+              CreationTime = DateTime.Now;
+              IsDeleted = false;
+          }
+          public enum BookType
+          {
+              Undefined,
+              Adventure,
+              Biography,
+              Dystopia,
+              Fantastic,
+              Horror,
+              Science,
+              ScienceFiction,
+              Poetry
+          }
+      }   
+  }
+  ```
+
+#### Active/Passive Entities
+
+- Implement the **IPassivable** interface that has been created for this reason. It defines the **IsActive** property.
+
+
+
+1. 在`.Core`層建立實體
+
+2. 在`.EntityFrameworkCore ` 新增 `DbSet`
+
+   ```C#
+   public class SimpleTaskAppDbContext : AbpDbContext
+   {
+       public DbSet<Task> Tasks { get; set; }
+   
+       public SimpleTaskAppDbContext(DbContextOptions<SimpleTaskAppDbContext> options) 
+           : base(options)
+       {
+   
+       }
+   }
+   ```
+
+   
+
+3. **Add-Migration**
+
+4. **Update the Database**
+
+
+
+##  Application Service
+
+- 應用服務主要是表現層與領域層中間溝通的橋樑，提供了服務給表現層調用，讓表現層與領域層的耦合降低
+- 另外在這層也提供了資料傳輸物件(DTO)，來與表現層互相傳遞資料，主要是Input與Output部分
+- 
+
+
+
+# Swagger Ui
+
+1. Install the **[Swashbuckle.AspNetCore](https://www.nuget.org/packages/Swashbuckle.AspNetCore/)** NuGet package to your **Web** project.
+2. 在 `startup.cs` 新增相關Swagger設定，可參考上面Swagger章節
+
+
+
+
+
+
+
+
+
+# 參考資料
+
+1. [Swashbuckle.AspNetCore.Filters](https://github.com/mattfrear/Swashbuckle.AspNetCore.Filters)
+2. [ Swagger 編寫文件的技巧和 Client Code Gen](https://dotblogs.com.tw/yc421206/2019/01/23/tips_write_write_web_api_document_via_swagger)
+3. [ASP.Net Boilerplate](https://aspnetboilerplate.com/)
+4. [ABP (ASP.NET Boilerplate) 應用程式開發框架新手教學](https://dotblogs.com.tw/jakeuj/2016/07/27/abp3)
+5. [Volo.ABP](https://docs.abp.io/en/abp/latest/Getting-Started-AspNetCore-MVC-Template)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
