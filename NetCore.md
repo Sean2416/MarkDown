@@ -805,7 +805,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   應用服務層：給表現層調用的服務與資料傳輸物件(DTO)
 
 - **.Core** *domain/business layer*
-  領域核心層：領域驅動設計(DDD)核心，內含***實體(Entity)***、***倉儲介面(Repository)***、***領域事件***、***工作單元 ***與***領域服務***
+  領域核心層：領域驅動設計(DDD)核心，內含***實體(Entity)***、***倉儲介面(Repository)***、***領域事件***、***工作單元 *** 與 ***領域服務***
 
 - **.EntityFramework**
   基礎設施層：EF框架、DbContext、實作倉儲介面、Migration資料庫遷移內含Seed預設資料列產生作業
@@ -828,7 +828,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
    - 移除`.Server`相關套件
 
-   - 安裝[`Pomelo.EntityFrameworkCore.MySql`](https://www.nuget.org/packages/Pomelo.EntityFrameworkCore.MySql/) 
+   - 安裝 `Pomelo.EntityFrameworkCore.MySql`
 
    - 調整` ~DbContextConfigurer.cs`
 
@@ -1069,7 +1069,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 # Swagger Ui
 
-1. Install the **[Swashbuckle.AspNetCore](https://www.nuget.org/packages/Swashbuckle.AspNetCore/)** NuGet package to your **Web** project.
+1. Install the `Swashbuckle.AspNetCore` NuGet package to your **Web** project.
 2. 在 `startup.cs` 新增相關Swagger設定，可參考上面Swagger章節
 
 
