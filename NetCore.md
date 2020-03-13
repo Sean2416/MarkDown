@@ -783,6 +783,8 @@ public class Member
 
 
 
+
+
 # ASP.Net Boilerplate
 
 ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
@@ -816,39 +818,11 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 - **.Web.Tests** project is for ASP.NET Core integrated tests (complete integration test including the web layer).
 
-
-
-## 轉換MySQL DB
-
-1. 修正 `.web`專案 `appsettings`內`ConnectionStrings` 
-
-   ` "Default": "Server=localhost;Database=ABPMysqlDb;Uid=root;Pwd=root;"`
-
-2. 調整`.EntityFrameworkCore` Package
-
-   - 移除`.Server`相關套件
-
-   - 安裝 `Pomelo.EntityFrameworkCore.MySql`
-
-   - 調整` ~DbContextConfigurer.cs`
-
-     ```C#
-     // dbContextOptions.UseSqlServer(connectionString);
-     //  TO
-     dbContextOptions.UseMySql(connectionString);
-     ```
-
-3. 移除`.EntityFrameworkCore`舊有Migrations
-
-4. Open **Package Manager Console** and select the ***.EntityFrameworkCore** project.
-
-5. Run the `add-migration Initial_Migration` command
-
-6. Run the `update-database` command
-
-
+  
 
 ## Entity
+
+-  ASP.NET Boilerplate內的所有實體都需要繼承 `Entity` 
 
 ### ID
 
@@ -1032,7 +1006,42 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 - Implement the **IPassivable** interface that has been created for this reason. It defines the **IsActive** property.
 
+#### IExtendableObject Interface
 
+- 用來儲存 **JSON formatted** 資料內容 (類似 `dictionary`)
+
+  ```C#
+  public class Person : Entity, IExtendableObject
+  {
+      public string Name { get; set; }
+  
+      public string ExtensionData { get; set; }
+  
+      public Person(string name)
+      {
+          Name = name;
+      }
+  }
+  //------------------------------------------------------------------------------------
+  
+  var person = new Person("John");
+  
+  person.SetData("RandomValue", RandomHelper.GetRandom(1, 1000));
+  person.SetData("CustomData", new MyCustomObject { Value1 = 42, Value2 = "forty-two" });
+  
+  /* person.ExtensionData
+  	{"CustomData":{"Value1":42,"Value2":"forty-two"},"RandomValue":178}
+  	var randomValue = person.GetData<int>("RandomValue");
+  	var customData = person.GetData<MyCustomObject>("CustomData");
+  	person.RemoveData("RandomValue");
+  */
+  ```
+
+  
+
+
+
+#### Create Entity And Context
 
 1. 在`.Core`層建立實體
 
@@ -1059,6 +1068,246 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 
 
+## Value Object
+
+- 具有描述性類別而沒有 *identity* 概念的物件`VALUE OBJECT`
+- `Entity` 跟  `VALUE OBJECT` 差別在於 `Entity`代表了資料的實體(包含可唯一的識別碼)， `VALUE OBJECT` 只包含針對物件的描述性類別。ex. Imagine two different people that have the same Name, Surname and Age but are different people (their identity numbers are different). For an Address class (which is a classic Value Object), if the two addresses have the same Country, City, and Street number, etc, they are considered to be the same address.
+- In Domain Driven Design (DDD), the Value Object is another type of domain object which can include business logic and is an essential part of the domain.
+
+### Base Classes
+
+- ABP has two base classes for value objects:  **ValueObject** and **ValueObject<T>** . Both classes override the equality operator (and other related operator and methods) to compare the two value objects and assume that they are identical if all the properties are the same.
+
+-  For example, all of these tests pass:
+
+  ```C#
+  var address1 = new Address(new Guid("21C67A65-ED5A-4512-AA29-66308FAAB5AF"), "Baris Manco Street", 42);
+  var address2 = new Address(new Guid("21C67A65-ED5A-4512-AA29-66308FAAB5AF"), "Baris Manco Street", 42);
+  
+  Assert.Equal(address1, address2);
+  Assert.Equal(address1.GetHashCode(), address2.GetHashCode());
+  Assert.True(address1 == address2);
+  Assert.False(address1 != address2);
+  
+  // Even if they are different objects in memory, they are identical for our domain.
+  ```
+
+
+
+## Repositories
+
+- 針對各個 `Entity` 建立資料庫操作的物件
+
+- 每個 `Entity` 再進行CRUD時，可繼承 **IRepository<TEntity>  OR  IRepository<TEntity, TPrimaryKey>**。兩者差別僅在於當初宣告的`Entity.Id`型別。
+
+  ```C#
+  // Person
+  public class Person : AuditedEntity<Guid>
+   {
+   	public virtual string Name { get; set; }
+      public virtual string EmailAddress { get; set; }
+  
+  	public Person()
+      {
+      	CreationTime = DateTime.Now;
+  
+  		Id = Guid.NewGuid();
+       }
+  }
+  
+  // PersonAppService
+  public class PersonAppService : SimpleTaskAppAppServiceBase, IPersonAppService
+  {
+  	private readonly IRepository<Person,Guid> _personRepository;
+  	
+      public PersonAppService(IRepository<Person, Guid> personRepository)
+      {
+      	_personRepository = personRepository;
+  	}
+  }
+  ```
+
+- Repository提供一些通用的功能:
+
+  - **Get** is used to get an Entity with a given primary key (Id). It throws an exception if there is no entity in the database with the given Id
+  - **Single** method is similar to Get but takes an expression rather than an Id. This way, you can write a lambda expression to get an Entity。It throws an exception if there is no entity with the given conditions or where there is more than one entity.
+  - **Load** does not retrieve the entity from the database but creates a proxy object for lazy-loading.
+
+  ```C#
+  TEntity Get(TPrimaryKey id);
+  Task<TEntity> GetAsync(TPrimaryKey id);
+  TEntity Single(Expression<Func<TEntity, bool>> predicate);
+  Task<TEntity> SingleAsync(Expression<Func<TEntity, bool>> predicate);
+  TEntity FirstOrDefault(TPrimaryKey id);
+  Task<TEntity> FirstOrDefaultAsync(TPrimaryKey id);
+  TEntity FirstOrDefault(Expression<Func<TEntity, bool>> predicate);
+  Task<TEntity> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate);
+  TEntity Load(TPrimaryKey id);
+  
+  /*
+      var person = _personRepository.Get(42);
+      var person = _personRepository.Single(p => p.Name == "John");
+  */
+  ```
+
+- **GetAllList** method is used to retrieve all entities from the database. An overload of it can be used to filter entities.
+
+- **GetAllIncluding** allows to specify related data to be included in query results. In the following example, people will be retrieved with their Addresses property populated.
+
+  ```C#
+  List<TEntity> GetAllList();
+  Task<List<TEntity>> GetAllListAsync();
+  List<TEntity> GetAllList(Expression<Func<TEntity, bool>> predicate);
+  Task<List<TEntity>> GetAllListAsync(Expression<Func<TEntity, bool>> predicate);
+  IQueryable<TEntity> GetAll();
+  IQueryable<TEntity> GetAllIncluding(params Expression<Func<TEntity, object>>[] propertySelectors)
+      
+  /*
+      var allPeople = _personRepository.GetAllList();
+      var somePeople = _personRepository.GetAllList(person => person.IsActive);
+      var allPeople = await _personRepository.GetAllIncluding(
+      p => p.Addresses).ToListAsync();
+  */
+  ```
+
+- ### Custom return value
+
+- There is also an additional method to provide the power of the IQueryable that can be usable out of a unit of work.
+
+  `T Query<T>(Func<IQueryable<TEntity>, T> queryMethod);`
+
+  ```C#
+  var people = _personRepository.Query(q => q.Where(p => p.Name.Contains("H")).OrderBy(p => p.Name).ToList());
+  ```
+
+- #### Insert
+
+  - **Insert** method simply inserts new a entity in to a database and returns the same inserted entity.
+  - **InsertAndGetId** method returns the Id of a newly inserted entity.
+  - **InsertOrUpdate** method inserts or updates a given entity by checking its Id's value
+  -  **InsertOrUpdateAndGetId** method returns the Id of the entity after inserting or updating it.
+
+  ```C#
+  TEntity Insert(TEntity entity);
+  Task<TEntity> InsertAsync(TEntity entity);
+  TPrimaryKey InsertAndGetId(TEntity entity);
+  Task<TPrimaryKey> InsertAndGetIdAsync(TEntity entity);
+  TEntity InsertOrUpdate(TEntity entity);
+  Task<TEntity> InsertOrUpdateAsync(TEntity entity);
+  TPrimaryKey InsertOrUpdateAndGetId(TEntity entity);
+  Task<TPrimaryKey> InsertOrUpdateAndGetIdAsync(TEntity entity);
+  ```
+
+- #### Update
+
+  ```C#
+  TEntity Update(TEntity entity);
+  Task<TEntity> UpdateAsync(TEntity entity);
+  ```
+
+- #### Delete
+
+  ```C#
+  void Delete(TEntity entity);
+  Task DeleteAsync(TEntity entity);
+  void Delete(TPrimaryKey id);
+  Task DeleteAsync(TPrimaryKey id);
+  void Delete(Expression<Func<TEntity, bool>> predicate);
+  Task DeleteAsync(Expression<Func<TEntity, bool>> predicate);
+  ```
+
+- ### Database Connections
+
+  - A database connection is **opened** and a **transaction** automatically begins while entering a repository method
+  - When the method ends and returns, all changes are **saved**, the transaction is **committed** and the database connection is **closed** by ASP.NET Boilerplate. 
+  - If your repository method throws any type of Exception, the transaction is automatically **rolled back** and the database connection is closed.
+  - If a repository method calls another repository method (even a method of a different repository) they share the **same connection and transaction.**
+  -  The connection is managed (opened/closed) by the first method that enters a repository.
+
+## Domain Services
+
+- Domain Services (or just Services in DDD) is used to ***perform domain operations and business rules.***
+
+- Unlike [Application Services](https://aspnetboilerplate.com/Pages/Documents/Application-Services) which get/return [Data Transfer Objects](https://aspnetboilerplate.com/Pages/Documents/Data-Transfer-Objects), a Domain Service gets/returns **domain objects** (like [entities](https://aspnetboilerplate.com/Pages/Documents/Entities) or value types).
+
+- A Domain Service can be used by Application Services and other Domain Services, but not directly by the presentation layer (application services are for that).
+
+-  **IDomainService interface** that is implemented by all domain services conventionally. When it's implemented, the domain service is **automatically registered** to the [Dependency Injection](https://aspnetboilerplate.com/Pages/Documents/Dependency-Injection) system as **transient**.
+
+- ### Example
+
+  1. ####  Creating an Interface
+
+     ```C#
+      public interface IPersonManager : IDomainService
+      {
+      	void CheckPeronEmail(string mailAddress);
+      }
+     ```
+
+  2. ####  Service Implementation
+
+     ```C#
+     public class PersonManager : IPersonManager
+     {
+     	private readonly IRepository<Person, Guid> _personRepository;
+     
+     	public PersonManager(IRepository<Person, Guid> personRepository)
+         {
+         	_personRepository = personRepository;
+         }
+     
+     	public void CheckPeronEmail(string mailAddress)
+         {
+         	var person = _personRepository.FirstOrDefault(
+         	r => r.EmailAddress.Equals(mailAddress));
+     
+         	if (person != null)
+     		{
+             throw new UserFriendlyException("There is already a person with given email address");
+             }
+         }
+     
+     }
+     ```
+
+  3. ####  Application Service 加入 Manager驗證
+
+     ```C#
+     public class PersonAppService : SimpleTaskAppAppServiceBase, IPersonAppService
+     {
+     	private readonly IRepository<Person,Guid> _personRepository;
+         private readonly IPersonManager _manager;
+     
+     	public PersonAppService(IRepository<Person, Guid> personRepository, IPersonManager manager)
+         {
+         	_personRepository = personRepository;
+             _manager = manager;
+         }
+     
+     	public void CreatePerson(CreatePersonInput input)
+         {
+         	var person = new Person {
+             	Name = input.Name, EmailAddress = input.EmailAddress 
+             };
+     
+     		_manager.CheckPeronEmail(input.EmailAddress);
+     
+     		_personRepository.Insert(person);
+         }
+     }
+     ```
+
+     
+
+  
+
+
+
+
+
+
+
 ##  Application Service
 
 - 應用服務主要是表現層與領域層中間溝通的橋樑，提供了服務給表現層調用，讓表現層與領域層的耦合降低
@@ -1067,12 +1316,40 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 
 
-# Swagger Ui
+## Swagger Ui
 
 1. Install the `Swashbuckle.AspNetCore` NuGet package to your **Web** project.
 2. 在 `startup.cs` 新增相關Swagger設定，可參考上面Swagger章節
 
 
+
+## MySQL DB
+
+1. 修正 `.web`專案 `appsettings`內`ConnectionStrings` 
+
+   ` "Default": "Server=localhost;Database=ABPMysqlDb;Uid=root;Pwd=root;"`
+
+2. 調整`.EntityFrameworkCore` Package
+
+   - 移除`.Server`相關套件
+
+   - 安裝 `Pomelo.EntityFrameworkCore.MySql`
+
+   - 調整` ~DbContextConfigurer.cs`
+
+     ```C#
+     // dbContextOptions.UseSqlServer(connectionString);
+     //  TO
+     dbContextOptions.UseMySql(connectionString);
+     ```
+
+3. 移除`.EntityFrameworkCore`舊有Migrations
+
+4. Open **Package Manager Console** and select the ***.EntityFrameworkCore** project.
+
+5. Run the `add-migration Initial_Migration` command
+
+6. Run the `update-database` command
 
 
 
