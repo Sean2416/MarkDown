@@ -817,10 +817,6 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 - **展現層（****Presentation**）：提供一個使用者介面，實現使用者交交互操作。
 
-- **應用層（****Application**）：進行展現層與領域層之間的協調，協調業務物件來執行特定的應用程式的任務。它不包含業務邏輯。
-
-- **領域層（****Domain**）：包括業務物件和業務規則，這是應用程式的核心層。
-
 - **基礎設施層（****Infrastructure**）：提供通用技術來支援更高的層。例如基礎設施層的倉儲(Repository)可通過ORM來實現資料庫交互。
 
 - **根據實際需要，可能會有額外添加的層。例如：**分散式服務層（**Distributed Service**）：用於公開應用程式接口供遠端用戶端調用。比如通過ASP.NET Web API或WCF來實現。這些都是常見的以領域為中心的分層體系結構。不同的項目在實現上可能會有細微的差別。
@@ -828,12 +824,6 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   ![img](file:///C:/Users/6591/AppData/Local/Temp/msohtmlclip1/01/clip_image002.gif)
 
   ![Startup template projects](https://raw.githubusercontent.com/aspnetboilerplate/aspnetboilerplate/master/doc/WebSite/Articles/Introduction-With-AspNet-Core-And-Entity-Framework-Core-Part-1/Template-Projects.png)
-
-- **.Application**
-  應用服務層：給表現層調用的服務與資料傳輸物件(DTO)
-
-- **.Core** *domain/business layer*
-  領域核心層：領域驅動設計(DDD)核心，內含***實體(Entity)***、***倉儲介面(Repository)***、***領域事件***、***工作單元 *** 與 ***領域服務***
 
 - **.EntityFramework**
   基礎設施層：EF框架、DbContext、實作倉儲介面、Migration資料庫遷移內含Seed預設資料列產生作業
@@ -846,15 +836,20 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
   
 
-## Entity
+## Domain Layer
+
+- `.Core`包括業務物件和業務規則，這是應用程式的核心層。
+- 領域驅動設計(DDD)核心，內含***實體(Entity)***、***倉儲介面(Repository)***、***領域事件(Event)***、**工作單元(Unit of Work) ** 與 ***領域服務(Domain Services)***
+
+### Entity
 
 -  ASP.NET Boilerplate內的所有實體都需要繼承 `Entity` 
 
-### ID
+#### ID
 
 - 類別Entity繼承後會自動含有一個資料型態為int的ID屬性，該類別還有一個泛型版本Entity<T>可以繼承
 
-### Auditing
+#### Auditing
 
 - ABP還提供了IHasCreationTime這個介面來讓我們統一所有會使用到建立時間這個屬性的實體，藉此統一該屬性名稱為CreationTime 
 
@@ -1092,15 +1087,13 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 4. **Update the Database**
 
-
-
-## Value Object
+#### Value Object
 
 - 具有描述性類別而沒有 *identity* 概念的物件`VALUE OBJECT`
 - `Entity` 跟  `VALUE OBJECT` 差別在於 `Entity`代表了資料的實體(包含可唯一的識別碼)， `VALUE OBJECT` 只包含針對物件的描述性類別。ex. Imagine two different people that have the same Name, Surname and Age but are different people (their identity numbers are different). For an Address class (which is a classic Value Object), if the two addresses have the same Country, City, and Street number, etc, they are considered to be the same address.
 - In Domain Driven Design (DDD), the Value Object is another type of domain object which can include business logic and is an essential part of the domain.
 
-### Base Classes
+#### Base Classes
 
 - ABP has two base classes for value objects:  **ValueObject** and **ValueObject<T>** . Both classes override the equality operator (and other related operator and methods) to compare the two value objects and assume that they are identical if all the properties are the same.
 
@@ -1120,7 +1113,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 
 
-## Repositories
+### Repositories
 
 - 針對各個 `Entity` 建立資料庫操作的物件
 
@@ -1250,7 +1243,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   - If a repository method calls another repository method (even a method of a different repository) they share the **same connection and transaction.**
   -  The connection is managed (opened/closed) by the first method that enters a repository.
 
-## Domain Services
+### Domain Services
 
 - Domain Services (or just Services in DDD) is used to ***perform domain operations and business rules.***
 
@@ -1326,7 +1319,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
      
 
-## Unit Of Work
+### Unit Of Work
 
 - ASP.NET Boilerplate **opens** a database connection and begins a **transaction** when **entering** a **unit of work method**.  At the end of the method, the transaction is **committed** and the connection is **disposed**. If the method throws an **exception**, the transaction is **rolled back**, and the connection is disposed.
 
@@ -1367,7 +1360,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   }
   ```
 
-### Controlling the Unit Of Work
+#### Controlling the Unit Of Work
 
 - You can **explicitly** use it if you want to control the unit of work somewhere else. There are two approaches for it. 
 
@@ -1422,9 +1415,11 @@ public class MyService
 }
 ```
 
-### Unit Of Work in Detail
 
-#### Disabling Unit Of Work
+
+#### Unit Of Work in Detail
+
+##### Disabling Unit Of Work
 
 - You may want to disable the unit of work **for the conventional unit of work methods** . To do that, use the `UnitOfWorkAttribute's` **IsDisabled** property
 
@@ -1436,7 +1431,7 @@ public virtual void RemoveFriendship(RemoveFriendshipInput input)
 }
 ```
 
-#### Non-Transactional Unit Of Work
+##### Non-Transactional Unit Of Work
 
 - Assume that you updated a few Entities in a non-transactional UOW. Even in this situation all the updates are performed at end of the unit of work with a single database command.
 - If you execute an SQL query directly, it's performed immediately and not rolled back if your UOW is not transactional.
@@ -1454,7 +1449,7 @@ public GetTasksOutput GetTasks(GetTasksInput input)
 }
 ```
 
-### Automatically Saving Changes
+##### Automatically Saving Changes
 
 - If a method is a unit of work, ASP.NET Boilerplate automatically saves all the changes at the end of the method.
 - `Repository` 取得的資料內容會與資料庫Binding。變更時，會自動更新資料庫內容 不需要使用 `_personRepository.Update`
@@ -1479,7 +1474,7 @@ public GetTasksOutput GetTasks(GetTasksInput input)
 
 
 
-### IRepository.GetAll()
+#### IRepository.GetAll()
 
 - `IQueryable`使用 **延遲** 執行，`GetAll()`不會直接進行資料庫查詢直到使用 **ToList() **
 - The database connection must also be open when `IQueryable.ToList()` is executed.
@@ -1508,7 +1503,7 @@ public SearchPeopleOutput SearchPeople(SearchPeopleInput input)
 }
 ```
 
-### UnitOfWork Attribute Restrictions
+#### UnitOfWork Attribute Restrictions
 
 - You can use the UnitOfWork attribute for:
   - All **public** or **public virtual** methods for classes that are used over an interface (Like an application service used over a service interface).
@@ -1517,7 +1512,7 @@ public SearchPeopleOutput SearchPeople(SearchPeopleInput input)
 - You can **not use the attribute for private methods** because ASP.NET Boilerplate uses dynamic proxying for that, and because private methods can not be seen from derived classes
 - The UnitOfWork attribute (and any proxying) does not work if you don't use [dependency injection](https://aspnetboilerplate.com/Pages/Documents/Dependency-Injection) and instantiate the class yourself.
 
-### Options
+#### Options
 
 -  we can change the default values of all the unit of works in the [startup configuration](https://aspnetboilerplate.com/Pages/Documents/Startup-Configuration).
 
@@ -1534,7 +1529,7 @@ public class SimpleTaskSystemCoreModule : AbpModule
 }
 ```
 
-### Events
+#### Events
 
 - A unit of work has the **Completed**, **Failed** and **Disposed** events. You can register to these events and perform any operations you need.
 
@@ -1557,13 +1552,199 @@ public class SimpleTaskSystemCoreModule : AbpModule
 
   
 
+### EventBus
+
+- The EventBus is a **singleton** object that is shared by other classes to trigger and handle events.
+
+#### 1. Injecting IEventBus
+
+1. use **DI** to get a reference to the **IEventBus**
+
+   ```C#
+   public class TaskAppService : ApplicationService
+   {
+       public IEventBus EventBus { get; set; }
+   
+       public TaskAppService()
+       {
+           EventBus = NullEventBus.Instance;
+       }
+   }
+   ```
+
+   
+
+2. Getting The **Default Instance**
+
+   - If you can not inject it, you can directly use **EventBus.Default**. 
+   - We **do not recommend** that you directly use EventBus.Default, since it makes unit testing harder.
+
+   ```C#
+   EventBus.Default.Trigger(...); //trigger an event
+   ```
+
+#### 2. Defining Events
+
+- Event 需要繼承 `EventData`
+
+- `EventData` 內包含 兩個屬性
+
+  - **EventSource** (the object that triggered the event)
+  - **EventTime** (when it's triggered)
+
+  ```C#
+  public class TaskCompletedEventData : EventData
+  {
+      public int TaskId { get; set; }
+  }
+  ```
+
+#### 3. Triggering Events
+
+- 執行 `EventBus.Trigger` 就可以觸發TaskCompletedEventData事件
+
+```C#
+public class TaskAppService : ApplicationService
+{
+    public IEventBus EventBus { get; set; }
+
+    public TaskAppService()
+    {
+        EventBus = NullEventBus.Instance;
+    }
+
+    public void CompleteTask(CompleteTaskInput input)
+    {
+        //TODO: complete the task in the database...
+        EventBus.Trigger(new TaskCompletedEventData {TaskId = 42});
+    }
+}
+```
+
+#### 4. Handling Events
+
+- To handle an event, you should implement the **IEventHandler<T>** interface
+- 所有有繼承 `IEventHandler<TaskCompletedEventData>` 都會在 `EventBus.Trigger(new TaskCompletedEventData {TaskId = 42});` 觸發時執行。
+
+```C#
+public class Act1 : IEventHandler<TaskCompletedEventData>, ITransientDependency
+{
+    public void HandleEvent(TaskCompletedEventData eventData)
+    {
+        WriteActivity("A task is completed by id = " + eventData.TaskId);
+    }
+}
+
+public class Act2 : IEventHandler<TaskCompletedEventData>, ITransientDependency
+{
+    public void HandleEvent(TaskCompletedEventData eventData)
+    {
+  	  Console.WriteLine("This is the Second Event");
+    }
+}
+```
+
+#### Predefined Events
+
+#####  Handled Exceptions
+
+- ASP.NET Boilerplate defines **AbpHandledExceptionData** and triggers this event when it automatically handles an exception. 
+- This is especially useful if you want to get more information about exceptions. You can register to this event to be informed when an exception occurs.
+
+#####  Entity Changes
+
+- There are also generic event data classes for entity changes
+- A change can be insert, update or delete.
+  - **EntityCreatingEventData<TEntity>, EntityCreatedEventData<TEntity>**, **EntityUpdatingEventData<TEntity>, EntityUpdatedEventData<TEntity>, EntityDeletingEventData<TEntity>** and **EntityDeletedEventData<TEntity>**. Also, there are **EntityChangingEventData<TEntity>** and **EntityChangedEventData<TEntity>**. 
+
+- 'ing' events (e.g. EntityUpdating) are triggered before committing a transaction. 
+  - you can rollback the [unit of work](https://aspnetboilerplate.com/Pages/Documents/Unit-Of-Work) and prevent an operation by throwing an exception.
+- 'ed' events (e.g. EntityUpdated) are triggered after committing a transaction
+  -  you cannot rollback the unit of work.
+
+- Entity change events are defined in the **Abp.Events.Bus.Entities** namespace and are **automatically triggered**  when an entity is inserted, updated or deleted.
+-  If you have a Person entity, you can register to EntityCreatedEventData<Person> to be informed when a new Person is created and inserted into the database.
+- These events also support inheritance. If the Student class is derived from the Person class and you registered to EntityCreatedEventData<Person>, you will be informed when a Person **or** Student is inserted.
+
+#### Handling Base Event
+
+- Eventbus 提供 Event的繼承 . 如下，**TaskEventData** 為父類別並包含兩個子類別**TaskCompletedEventData** and **TaskCreatedEventData**:
+
+  ```C#
+  public class TaskEventData : EventData
+  {
+      public Task Task { get; set; }
+  }
+  
+  public class TaskCreatedEventData : TaskEventData
+  {
+      public User CreatorUser { get; set; }
+  }
+  
+  public class TaskCompletedEventData : TaskEventData
+  {
+      public User CompletorUser { get; set; }
+  }
+  ```
+
+- 因此當觸發的事件有繼承**TaskEventData **時，都會觸發下列事件 ex.
+
+  -  ` EventBus.Trigger(new TaskCreatedEventData { S = "Create" });`
+  - ` EventBus.Trigger(new TaskCompletedEventData { TaskId = 42 });`
+
+  ```C#
+  public class ActivityWriter : IEventHandler<TaskEventData>, ITransientDependency
+  {
+      public void HandleEvent(TaskEventData eventData)
+      {
+          if (eventData is TaskCreatedEventData)
+          {
+              //...
+          }
+          {
+              //...
+          }
+      }
+  }
+  ```
+
+  ![1584203073281](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1584203073281.png)
 
 
-##  Application Service
 
-- 應用服務主要是表現層與領域層中間溝通的橋樑，提供了服務給表現層調用，讓表現層與領域層的耦合降低
-- 另外在這層也提供了資料傳輸物件(DTO)，來與表現層互相傳遞資料，主要是Input與Output部分
-- 
+#### Handling Multiple Events
+
+- You can handle **multiple events** in a single handler.
+
+```C#
+public class ActivityWriter :
+    IEventHandler<TaskCompletedEventData>,
+    IEventHandler<TaskCreatedEventData>,
+    ITransientDependency
+{
+    public void HandleEvent(TaskCompletedEventData eventData)
+    {
+        //TODO: handle the event...
+    }
+
+    public void HandleEvent(TaskCreatedEventData eventData)
+    {
+        //TODO: handle the event...
+    }
+}
+```
+
+
+
+## Application Layer
+
+- `.Application`應用服務主要是表現層與領域層中間溝通的橋樑，提供了服務給表現層調用，讓表現層與領域層的耦合降低
+- 不包含業務邏輯。
+- 這層也提供了資料傳輸物件(DTO)，來與表現層互相傳遞資料，主要是Input與Output部分
+
+###  Application Service
+
+
 
 
 
