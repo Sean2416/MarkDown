@@ -1,8 +1,34 @@
-- f you want to implement all the audit interfaces (creation, modification and deletion) for an entity, you can directly implement **IFullAudited** since it inherits from the others:****.Application** project is for application layer (DTOs, application services...)
-- **.EntityFramework** project is for EF Core integration (abstracts EF Core from other layers).
-- **.Web** project is for ASP.NET MVC layer.
-- **.Tests** project is for unit and integration tests (up to application layer, excluding web layer)
-- **.Web.Tests** project is for ASP.NET Core integrated tests (complete integration test including the web layer).
+B
+
+# Expression<TDelegate> 
+
+- 將強類型 Lambda 運算式表示為運算式樹狀結構形式的資料結構。
+
+- `public sealed class Expression<TDelegate> : System.Linq.Expressions.LambdaExpression`
+
+  ```C#
+  // Lambda expression as executable code.
+  Func<int, bool> deleg = i => i < 5;
+  // Invoke the delegate and display the output.
+  Console.WriteLine("deleg(4) = {0}", deleg(4));
+  
+  // Lambda expression as data in the form of an expression tree.
+  System.Linq.Expressions.Expression<Func<int, bool>> expr = i => i < 5;
+  // Compile the expression tree into executable code.
+  Func<int, bool> deleg2 = expr.Compile();
+  // Invoke the method and print the output.
+  Console.WriteLine("deleg2(4) = {0}", deleg2(4));
+  
+  /*  This code produces the following output:
+  
+      deleg(4) = True
+      deleg2(4) = True
+  */
+  ```
+
+  
+
+
 
 # Dependency Injection
 
@@ -1300,11 +1326,236 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
      
 
+## Unit Of Work
+
+- ASP.NET Boilerplate **opens** a database connection and begins a **transaction** when **entering** a **unit of work method**.  At the end of the method, the transaction is **committed** and the connection is **disposed**. If the method throws an **exception**, the transaction is **rolled back**, and the connection is disposed.
+
+- If a unit of work method calls another unit of work method, both use the same connection & transaction. The first entered method manages the connection & transaction and then the others reuse it.
+
+- Some methods are unit of work methods by default:
+
+  - All [MVC](https://aspnetboilerplate.com/Pages/Documents/MVC-Controllers), [Web API](https://aspnetboilerplate.com/Pages/Documents/Web-API-Controllers) and [ASP.NET Core MVC](https://aspnetboilerplate.com/Pages/Documents/AspNet-Core) Controller actions.
+  - All [Application Service](https://aspnetboilerplate.com/Pages/Documents/Application-Services) methods.
+  - All [Repository](https://aspnetboilerplate.com/Pages/Documents/Repositories) methods.
+
+- The unit of work is ambient. If a unit of work method calls another unit of work method, they share the same connection and transaction. **The first method** manages the connection and then the other methods reuse it.
+
+- Example:
+
+  - In the `CreatePerson` method, we're inserting a person using the **person repository** and incrementing the total people count using the  **statistics repository**. 
+  - Both of these repositories **share** the same connection and transaction, since the application service method is a unit of work by default.
+  - Boilerplate opens a database connection and starts a transaction when entering the CreatePerson method, and if no exception is thrown, it commits the transaction at the end of it.
+
+  ```C#
+  public class PersonAppService : IPersonAppService
+  {
+      private readonly IPersonRepository _personRepository;
+      private readonly IStatisticsRepository _statisticsRepository;
   
+      public PersonAppService(IPersonRepository personRepository, IStatisticsRepository statisticsRepository)
+      {
+          _personRepository = personRepository;
+          _statisticsRepository = statisticsRepository;
+      }
+  
+      public void CreatePerson(CreatePersonInput input)
+      {
+          var person = new Person { Name = input.Name, EmailAddress = input.EmailAddress };
+          _personRepository.Insert(person);
+          _statisticsRepository.IncrementPeopleCount();
+      }
+  }
+  ```
+
+### Controlling the Unit Of Work
+
+- You can **explicitly** use it if you want to control the unit of work somewhere else. There are two approaches for it. 
+
+##### UnitOfWork Attribute
+
+- `CreatePerson` method becomes a unit of work and manages the database connection and transaction.
+- Both repositories use the same unit of work.
+- Note that you do not need the UnitOfWork attribute if this is an application service method.
+
+```C#
+[UnitOfWork]
+public void CreatePerson(CreatePersonInput input)
+{
+    var person = new Person { Name = input.Name, EmailAddress = input.EmailAddress };
+    _personRepository.Insert(person);
+    _statisticsRepository.IncrementPeopleCount();
+}
+```
+
+##### IUnitOfWorkManager
+
+- You can inject and use `IUnitOfWorkManager` as shown here (Some base classes already have **UnitOfWorkManager** injected by default: MVC Controllers, [application services](https://aspnetboilerplate.com/Pages/Documents/Application-Services), [domain services](https://aspnetboilerplate.com/Pages/Documents/Domain-Services)...). 
+- You can create a **limited scope** unit of work. Using this approach, you must call the **Complete** method manually.
+- If you don't call it, the transaction is **rolled back** and the changes are not saved.
+
+```C#
+public class MyService
+{
+    private readonly IUnitOfWorkManager _unitOfWorkManager;
+    private readonly IPersonRepository _personRepository;
+    private readonly IStatisticsRepository _statisticsRepository;
+
+    public MyService(IUnitOfWorkManager unitOfWorkManager, IPersonRepository personRepository, IStatisticsRepository statisticsRepository)
+    {
+        _unitOfWorkManager = unitOfWorkManager;
+        _personRepository = personRepository;
+        _statisticsRepository = statisticsRepository;
+    }
+
+    public void CreatePerson(CreatePersonInput input)
+    {
+        var person = new Person { Name = input.Name, EmailAddress = input.EmailAddress };
+
+        using (var unitOfWork = _unitOfWorkManager.Begin())
+        {
+            _personRepository.Insert(person);
+            _statisticsRepository.IncrementPeopleCount();
+
+            unitOfWork.Complete();
+        }
+    }
+}
+```
+
+### Unit Of Work in Detail
+
+#### Disabling Unit Of Work
+
+- You may want to disable the unit of work **for the conventional unit of work methods** . To do that, use the `UnitOfWorkAttribute's` **IsDisabled** property
+
+```C#
+[UnitOfWork(IsDisabled = true)]
+public virtual void RemoveFriendship(RemoveFriendshipInput input)
+{
+    _friendshipRepository.Delete(input.Id);
+}
+```
+
+#### Non-Transactional Unit Of Work
+
+- Assume that you updated a few Entities in a non-transactional UOW. Even in this situation all the updates are performed at end of the unit of work with a single database command.
+- If you execute an SQL query directly, it's performed immediately and not rolled back if your UOW is not transactional.
+- If you're already in a transactional unit of work scope, setting `isTransactional` to false is ignored
+
+```C#
+[UnitOfWork(isTransactional: false)]
+public GetTasksOutput GetTasks(GetTasksInput input)
+{
+    var tasks = _taskRepository.GetAllWithPeople(input.AssignedPersonId, input.State);
+    return new GetTasksOutput
+            {
+                Tasks = Mapper.Map<List<TaskDto>>(tasks)
+            };
+}
+```
+
+### Automatically Saving Changes
+
+- If a method is a unit of work, ASP.NET Boilerplate automatically saves all the changes at the end of the method.
+- `Repository` 取得的資料內容會與資料庫Binding。變更時，會自動更新資料庫內容 不需要使用 `_personRepository.Update`
+
+```C#
+[UnitOfWork]
+ public async Task<ListResultDto<PersonDto>> GetAll()
+ {
+     var tasks = await _personRepository
+         .GetAll()
+         .ToListAsync();
+
+     tasks.First().Name = "朱書陳1234";
+
+     return new ListResultDto<PersonDto>(
+         ObjectMapper.Map<List<PersonDto>>(tasks)
+     );
+ }
+```
+
+![1584160575565](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1584160575565.png)
 
 
 
+### IRepository.GetAll()
 
+- `IQueryable`使用 **延遲** 執行，`GetAll()`不會直接進行資料庫查詢直到使用 **ToList() **
+- The database connection must also be open when `IQueryable.ToList()` is executed.
+
+```C#
+public SearchPeopleOutput SearchPeople(SearchPeopleInput input)
+{
+    // get IQueryable<Person>
+    var query = _personRepository.GetAll();
+
+    // add some filters if selected
+    if (!string.IsNullOrEmpty(input.SearchedName))
+    {
+        query = query.Where(person => person.Name.StartsWith(input.SearchedName));
+    }
+
+    if (input.IsActive.HasValue)
+    {
+        query = query.Where(person => person.IsActive == input.IsActive.Value);
+    }
+
+    // get paged result list
+    var people = query.Skip(input.SkipCount).Take(input.MaxResultCount).ToList();
+
+    return new SearchPeopleOutput { People = Mapper.Map<List<PersonDto>>(people) };
+}
+```
+
+### UnitOfWork Attribute Restrictions
+
+- You can use the UnitOfWork attribute for:
+  - All **public** or **public virtual** methods for classes that are used over an interface (Like an application service used over a service interface).
+  - All **public virtual** methods for self-injected classes (Like **MVC Controllers** and **Web API Controllers**).
+  - All **protected virtual** methods.
+- You can **not use the attribute for private methods** because ASP.NET Boilerplate uses dynamic proxying for that, and because private methods can not be seen from derived classes
+- The UnitOfWork attribute (and any proxying) does not work if you don't use [dependency injection](https://aspnetboilerplate.com/Pages/Documents/Dependency-Injection) and instantiate the class yourself.
+
+### Options
+
+-  we can change the default values of all the unit of works in the [startup configuration](https://aspnetboilerplate.com/Pages/Documents/Startup-Configuration).
+
+```C#
+public class SimpleTaskSystemCoreModule : AbpModule
+{
+    public override void PreInitialize()
+    {
+        Configuration.UnitOfWork.IsolationLevel = IsolationLevel.ReadCommitted;
+        Configuration.UnitOfWork.Timeout = TimeSpan.FromMinutes(30);
+    }
+
+    //...other module methods
+}
+```
+
+### Events
+
+- A unit of work has the **Completed**, **Failed** and **Disposed** events. You can register to these events and perform any operations you need.
+
+-  For example, you may want to run some code when the current unit of work successfully completes. Example:
+
+  ```C#
+  public void CreateTask(CreateTaskInput input)
+  {
+      var task = new Task { Description = input.Description };
+  
+      if (input.AssignedPersonId.HasValue)
+      {
+          task.AssignedPersonId = input.AssignedPersonId.Value;
+          _unitOfWorkManager.Current.Completed += (sender, args) => { /* TODO: Send email to assigned person */ };
+      }
+  
+      _taskRepository.Insert(task);
+  }
+  ```
+
+  
 
 
 
