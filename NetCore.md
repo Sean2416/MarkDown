@@ -1736,6 +1736,132 @@ public class ActivityWriter :
 
 
 
+## Data Filters
+
+-  Boilerplate provides **data filters** that can be used to automatically filter queries based on some rules.
+
+#### Pre-Defined Filters
+
+#####  ISoftDelete
+
+- 當`Entity `繼承了 `ISoftDelete` 後，資料就不會進行實際的刪除動作。而是在欄位 `IsDeleted` 標註為刪除
+
+  ```C#
+   public class Person : FullAuditedEntity<Guid>
+   {
+       public virtual string Name { get; set; }
+       public virtual string EmailAddress { get; set; }
+  
+      public Person()
+      {
+    	  CreationTime = DateTime.Now;
+  
+     	  Id = Guid.NewGuid();
+      }
+  }
+  
+  /*
+     migrationBuilder.CreateTable(
+                  name: "persons",
+                  columns: table => new
+                  {
+                      Id = table.Column<Guid>(nullable: false),
+                      CreationTime = table.Column<DateTime>(nullable: false),
+                      CreatorUserId = table.Column<long>(nullable: true),
+                      LastModificationTime = table.Column<DateTime>(nullable: true),
+                      LastModifierUserId = table.Column<long>(nullable: true),
+                     
+                      IsDeleted = table.Column<bool>(nullable: false),
+                      DeleterUserId = table.Column<long>(nullable: true),
+                      DeletionTime = table.Column<DateTime>(nullable: true),
+                      
+                      Name = table.Column<string>(nullable: true),
+                      EmailAddress = table.Column<string>(nullable: true)
+                  },
+  */
+  ```
+
+- 此時在正常情況下查詢該資料表時 ABP會自動將 `ISoftDelete = True `  的資料過濾掉
+
+  ```C#
+  public async Task<ListResultDto<PersonDto>> GetAll()
+  {
+      var tasks = await _personRepository
+          .GetAll()
+          .ToListAsync();
+  
+      return new ListResultDto<PersonDto>(
+          ObjectMapper.Map<List<PersonDto>>(tasks)
+      );
+  }
+  
+  // Only Get ISoftDelete = False Data
+  ```
+
+- 如果要真的刪除該筆資料，可使用 **IRepository.HardDelete**
+
+- 如果想停止  `IsDeleted` 資料過濾，可使用
+
+   ` using (_unitOfWorkManager.Current.DisableFilter(AbpDataFilters.SoftDelete))`
+
+  ```C#
+   public async Task<ListResultDto<PersonDto>> GetAll()
+   {
+       using (_unitOfWorkManager.Current.DisableFilter(AbpDataFilters.SoftDelete))
+       {
+           var people2 = _personRepository.GetAllList();
+           
+           return new ListResultDto<PersonDto>(
+           ObjectMapper.Map<List<PersonDto>>(people2)
+           );
+       }
+  
+  }
+  ```
+
+#####  IMustHaveTenant
+
+- If you are building **multi-tenant**(用戶) applications and store all tenant data in **single database**, you definitely do not want a tenant accidentally seeing other tenants' data.
+
+  - You can implement **IMustHaveTenant** in that case. **IMustHaveTenant** defines the **TenantId** property to distinguish between different tenant entities.
+
+  ```C#
+  public class Product : Entity, IMustHaveTenant
+  {
+  	public int TenantId { get; set; }
+  
+  	public string Name { get; set; }
+  }
+  ```
+
+- If an entity class is shared by tenants **and** the host, you can use the IMayHaveTenant filter. 
+
+  - The **IMayHaveTenant** interface defines **TenantId** but it's **nullable**.
+  - A **null** value means this is a **host** entity, a **non-null** value means this entity is owned by a **tenant** in which the Id is the TenantId. 
+
+  ```c#
+  public class Role : Entity, IMayHaveTenant
+  {
+      public int? TenantId { get; set; }
+  
+      public string RoleName { get; set; }
+  }
+  ```
+
+#####  Disable Filters Globally
+
+-  you can disable pre-defined filters globally. add this code to the PreInitialize method of your module
+
+  `Configuration.UnitOfWork.OverrideFilter(AbpDataFilters.SoftDelete, false);`
+
+#####  Setting Filter
+
+- The `SetFilterParameter` method also returns an IDisposable. So, we can use it in a **using** statement to automatically **restore the old value** after the using statement.
+
+  `CurrentUnitOfWork.SetFilterParameter("PersonFilter", "personId", 42);`
+
+
+
 ## Application Layer
 
 - `.Application`應用服務主要是表現層與領域層中間溝通的橋樑，提供了服務給表現層調用，讓表現層與領域層的耦合降低
@@ -1744,7 +1870,364 @@ public class ActivityWriter :
 
 ###  Application Service
 
+-  An Application Service is called from the presentation layer using a DTO (Data Transfer Object) as a parameter.
+- It also uses domain objects to perform some specific business logic and returns a DTO back to the presentation layer. 
 
+####  IApplicationService Interface
+
+- Application Sevice 必須實作 **IApplicationService** 
+
+- `CreatePersonInput` 是定義好的DTO (Data Transfer Object)，用來規範方法傳入的參數內容
+
+  ```C#
+  public interface IPersonAppService : IApplicationService
+  {
+      void CreatePerson(CreatePersonInput input);
+  }
+  
+  public class CreatePersonInput
+  {
+      [Required]
+      public string Name { get; set; }
+  
+      public string EmailAddress { get; set; }
+  }
+  ```
+
+- 實作 `IPersonAppService`
+
+#### ApplicationService Class
+
+- **Optionally**, it can be derived from the **ApplicationService** base class. Thus, IApplicationService is inherently implemented.
+
+- `ApplicationService` class has some basic functionality that makes it easy to do **logging,** **localization** and so on... 
+
+- You can have a base class which defines **LocalizationSourceName** in it's constructor. This way you do not repeat it for all service classes.
+
+  ```C#
+  public class TaskAppService : ApplicationService, ITaskAppService
+  {
+      public TaskAppService()
+      {
+          LocalizationSourceName = "SimpleTaskSystem";
+      }
+  
+      public void CreateTask(CreateTaskInput input)
+      {
+          //Write some logs (Logger is defined in ApplicationService class)
+          Logger.Info("Creating a new task with description: " + input.Description);
+  
+          //Get a localized text (L is a shortcut for LocalizationHelper.GetString(...), defined in ApplicationService class)
+          var text = L("SampleLocalizableTextKey");
+  
+          //TODO: Add new task to database...
+      }
+  }
+  ```
+
+  
+
+#### CrudAppService and AsyncCrudAppService Classes
+
+- `AsyncCrudAppService ` 及 `CrudAppService` 是 ABP 提供的基本 Service。
+- 裡面已經包含了 **CRUD**的基本功能
+-  The CrudAppService base class is **generic**, which gets the related **Entity** and **DTO** types as generic arguments.
+- This is also **extensible**, allowing you to override functionality when you need to customize it.
+
+#####   Simple CRUD Application Service Example
+
+1. Create DTO Object
+
+   - The `AutoMap` attribute creates a mapping configuration between the entity and dto.
+
+   ```C#
+   public class Company : Entity<Guid>, ISoftDelete
+   {
+       public virtual string Name { get; set; }
+       public virtual string Address { get; set; }
+       public virtual string Phone { get; set; }
+   
+       public virtual bool IsDeleted { get; set; }
+   
+       public DateTime CreationTime { get; set; }
+   
+       public Company()
+       {
+           CreationTime = DateTime.Now;
+           IsDeleted = false;
+       }
+   }
+   
+   //DTO
+   [AutoMap(typeof(Company))]
+   public class CompanyDto : EntityDto<Guid>, IHasCreationTime, ISoftDelete
+   {
+       public string Name { get; set; }
+       public string Address { get; set; }
+   
+       public string Phone { get; set; }
+   
+       public DateTime CreationTime { get; set; }
+   
+       public  bool IsDeleted { get; set; }
+   }
+   ```
+
+2. Create Service
+
+   ```C#
+   //這樣 CompanyAppService 就已經包含了CRUD的API功能
+   public class CompanyAppService :  AsyncCrudAppService<Company, CompanyDto, Guid>
+   {
+   	public ICompanyAppService(IRepository<Company, Guid> repository)
+               : base(repository)
+       {
+   
+       }
+   }
+   ```
+
+3. 或是先建立`Interface` 再實作
+
+   ```C#
+   public interface ITaskAppService : IAsyncCrudAppService<TaskDto>
+   {
+           
+   }
+   
+   public class TaskAppService : AsyncCrudAppService<Task, TaskDto>, ITaskAppService
+   {
+       public TaskAppService(IRepository<Task> repository) 
+           : base(repository)
+       {
+   
+       }
+   }
+   ```
+
+#####   Customize CRUD Application Services
+
+- `AsyncCrudAppService` 的方法可以透過複寫的方式來進行調整
+
+  1. 新增一個查詢的 Input Object，並繼承基底`PagedAndSortedResultRequestDto`
+
+     - A Crud application service gets **PagedAndSortedResultRequestDto** as an argument for the **GetAll** method as default, which provides optional sorting and paging parameters.
+     - Here we inherit from **PagedAndSortedResultRequestInput**. This is **not required**, but if you want, you can use the paging & sorting parameters from the base class. 
+
+     ```C#
+     public class GetAllCompanysInput : PagedAndSortedResultRequestDto
+     {
+         public bool? IsDeleted { get; set; }
+     }
+     ```
+
+  2.  將 Input 引用至 `AsyncCrudAppService` 中，並複寫方法
+
+     1. We added **GetAllTasksInput** as a 4th generic parameter to the AsyncCrudAppService class (3rd one is PK type of the entity). 
+     2. Override the **CreateFilteredQuery** method to apply custom filters. This method is an extension point for the AsyncCrudAppService class. 
+     3. WhereIf is an extension method of ABP to simplify conditional filtering. What we're doing here is simply filtering an IQueryable.
+
+     ```C#
+     public class ICompanyAppService : AsyncCrudAppService<Company, CompanyDto, Guid , GetAllCompanysInput>
+     {
+         public ICompanyAppService(IRepository<Company, Guid> repository)
+             : base(repository)
+         {
+     
+         }
+         protected override IQueryable<Company> CreateFilteredQuery(GetAllCompanysInput input)
+         {
+             return base.CreateFilteredQuery(input)
+                 .WhereIf(input.IsDeleted.HasValue, t => t.IsDeleted == input.IsDeleted.Value);
+         }
+     }
+     ```
+
+- ##### Create and Update  ***測試失敗*** 可能是 Id 型態
+
+  - Notice that we are using same DTO (TaskDto) for getting, **creating** and **updating** tasks which may not be good for real life applications
+  - **customize the create and update DTOs**.
+    - 將 Input 引用至 `AsyncCrudAppService` 中
+
+### **Data Transfer Objects**
+
+- Transfer data between the **Application Layer** and the **Presentation Layer**.
+
+- 可以根據不同的需求定義不同的傳輸物件，以達到資料保密的目的
+
+- Ex.
+
+  ```C#
+  public class User : Entity
+  {
+      public virtual string Name { get; set; }
+      public virtual string EmailAddress { get; set; }
+      public virtual string Phone { get; set; }
+      public virtual string Password { get; set; }
+  }
+  ```
+
+  -  `User` 內部包含使用者密碼欄位，該欄位再查詢時不應該被回傳回前端。
+
+  - 因此，我們可根據不同的狀況回傳不同內容
+
+    ```C#
+    [AutoMap(typeof(User))]
+    public class UserDto : EntityDto
+    {
+        public string Name { get; set; }
+        public string EmailAddress { get; set; }
+    }
+    
+    public class SearchUserInput
+    {
+        [StringLength(40, MinimumLength = 1)]
+        public string SearchedName { get; set; }
+    }
+    
+    public class SearchUserOutput
+    {
+        public List<UserDto> People { get; set; }
+    }
+    
+    public class CreateUserInput : UserDto
+    {
+        public string Password { get; set; }
+    }
+    ```
+
+  - `IObjectMapper` 可協助我們將　`List<User>` 轉換成`List<UserDto>`
+
+  ```C#
+  public class UserAppService :  IUserAppService
+  {
+      private readonly IRepository<User> _Repository;
+  
+      private readonly IObjectMapper _objectMapper;
+  
+      public UserAppService(IRepository<User> repository, IObjectMapper objectMapper)
+      {
+          _Repository = repository;
+          _objectMapper = objectMapper;
+      }
+  
+      public ListResultDto<UserDto> GetAll()
+      {
+          //Get entities
+          var peopleEntityList = _Repository.GetAllList();
+              
+          return new ListResultDto<UserDto>(
+              _objectMapper.Map<List<UserDto>>(peopleEntityList)
+          );
+  
+      }
+  
+      public SearchUserOutput GetUser(SearchUserInput input)
+      {
+          //Get entities
+          var peopleEntityList = _Repository.GetAllList(r => r.Name.Equals(input.SearchedName));
+  
+          //Convert to DTOs
+          var peopleDtoList = peopleEntityList
+              .Select(person => new UserDto
+              {
+                  Id = person.Id,
+                  Name = person.Name,
+                  EmailAddress = person.EmailAddress
+              }).ToList();
+  
+          return new SearchUserOutput { People = _objectMapper.Map<List<UserDto>>(peopleEntityList) };
+      }
+  
+      public void CreateUser(CreateUserInput input)
+      {
+          var user = new User { Name = input.Name, EmailAddress = input.EmailAddress , Password = input.Password};
+  
+          _Repository.Insert(user);
+      }
+  }
+  ```
+
+#### Helper interfaces and classes
+
+- ASP.NET Boilerplate 提供一些 DTO 的通用屬性供使用
+
+- **IPagedResultRequest** extends **ILimitedResultRequest** by adding **SkipCount**. Let's implement this interface in SearchPeopleInput for paging
+
+  ```C#
+   public class SearchUserInput : IPagedResultRequest
+      {
+          [StringLength(40, MinimumLength = 1)]
+          public string SearchedName { get; set; }
+          public int MaxResultCount { get; set; }
+          public int SkipCount { get; set; }
+      }
+  ```
+
+  
+
+
+
+## API 開發順序
+
+1.  在`.Core `新建資料實體，並繼承 ABP`Entity`
+
+   ```C#
+   public class Company : FullAuditedEntity<Guid>
+   {
+   	public virtual string Name { get; set; }
+       public virtual string Address { get; set; }
+   
+   	public Company()
+       {
+       	CreationTime = DateTime.Now;
+   
+   		Id = Guid.NewGuid();
+       }
+   }
+   ```
+
+2.  在`.EntityFrameworkCore` 的 `~DbContext中`加入
+
+   ```C#
+   public class SimpleTaskAppDbContext : AbpDbContext
+   {
+       public DbSet<Company> Companys { get; set; }
+   
+       public SimpleTaskAppDbContext(DbContextOptions<SimpleTaskAppDbContext> options) 
+           : base(options)
+       {
+   
+       }
+   }
+   ```
+
+3. 建立 `Migiration`
+
+   - 將 設為起始專案
+   - 在套件管理器主控台執行 `Add-Migration Create_Company`
+   - 在套件管理器主控台執行 `update-database`
+
+4. 新增 `ApplicationService`
+
+   1. 建立繼承 **IApplicationService** 的介面
+   2. 建立 DTO Class
+   3. 實作介面方法 
+
+5. 　修正`.web` 專案 `startup.cs` 內　`ConfigureServices`
+
+```C#
+/*
+services.AddControllersWithViews(options =>
+{
+  options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+
+}).AddNewtonsoftJson();
+*/
+// TO
+
+services.AddMvc();
+```
 
 
 
