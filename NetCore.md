@@ -1,4 +1,4 @@
-B
+
 
 # Expression<TDelegate> 
 
@@ -2165,6 +2165,126 @@ public class ActivityWriter :
   ```
 
   
+
+## Background  Service
+
+### Background Jobs
+
+- 一次性的背景服務
+- Background jobs are used to queue some tasks to be executed in the background
+- You may need background jobs for several reasons.
+  - To perform **long-running tasks** without having the users wait.
+    - EX. 使用者透過API進行報表查詢及Mail發送
+  - To create **re-trying** and **persistent tasks** to **guarantee** code will be **successfully executed**. 
+    - .For example, you can send emails in a background job to overcome **temporary failures** and **guarantee** that it eventually will be sent. That way users do not wait while sending emails.
+
+####  Create a Background Job
+
+- 透過繼承**BackgroundJob<Targs>** 或 **IBackgroundJob<Targs>**，建立背景工作
+
+  - 複寫`Execute` 方法進行背景工作執行
+
+  - `Targs` 代表傳入工作的參數
+
+  - 繼承**ITransientDependency**  來完成DI註冊
+
+    ```C#
+    public class TestJob : BackgroundJob<User>, ITransientDependency
+    {
+        public override void Execute(User user)
+        {
+            Thread.Sleep(10000);
+    
+            Console.WriteLine($"Create User Name IS {user.Name}");
+    
+            Logger.Debug(user.Name);
+        }
+    }
+    ```
+
+- Service 透過 `IBackgroundJobManager`執行
+
+  ```C#
+  public class UserAppService : SimpleMailTaskAppServiceBase, IUserAppService
+  {
+      private readonly IRepository<User, Guid> _Repository;
+      private readonly IObjectMapper _objectMapper;
+      private readonly IBackgroundJobManager _backgroundJobManager;
+  
+      public UserAppService(IRepository<User, Guid> repository, IUserManager manager, IBackgroundJobManager backgroundJobManager)
+      {
+          _Repository = repository;
+          _objectMapper = objectMapper;
+          _backgroundJobManager = backgroundJobManager;
+      }
+      public void CreateUser(CreateUserInput input)
+      {
+          var user = new User { Name = input.Name, EmailAddress = input.EmailAddress, Phone = input.Phone };
+  
+          _backgroundJobManager.Enqueue<TestJob, User>(user);
+  
+          _manager.CheckCreateValue(user);
+  
+          _Repository.Insert(user);
+      }   
+  }
+  ```
+
+- 使用者的Request完成後會直接回傳結果，而背景服務在停留10秒後繼續執行不會影響到使用者
+
+### Background Workers
+
+- **可重複執行**
+- They are simple **independent threads** in the application running in the background
+
+#### Create a Background Worker
+
+- 實作 **IBackgroundWorker** 介面 或 繼承 **BackgroundWorkerBase** or **PeriodicBackgroundWorkerBase**
+- If you derive from **PeriodicBackgroundWorkerBase**, you should implement the **DoWork**.
+- If you derive from the **BackgroundWorkerBase** or directly implement **IBackgroundWorker**, you will override/implement the **Start**, **Stop** and **WaitToStop**
+  - Start and Stop methods should be **non-blocking**, the WaitToStop method should **wait** for the worker to finish its current critical job.
+
+```C#
+public class TestJob : PeriodicBackgroundWorkerBase, ISingletonDependency
+{
+    private int _Count = 0;
+    public TestJob(AbpTimer timer)
+    : base(timer)
+    {
+        Timer.Period = 5000; //5 seconds (good for tests, but normally will be more)
+    }
+
+    [UnitOfWork]
+    protected override void DoWork()
+    {
+        Console.WriteLine($"BackGround Service Running For: {++_Count} Times");
+
+    }
+}
+```
+
+- 註冊背景服務
+
+```C#
+[DependsOn(typeof(AbpMailKitModule))]
+public class SimpleMailTaskCoreModule : AbpModule
+{
+    public override void PreInitialize()
+    {
+        Configuration.Auditing.IsEnabledForAnonymousUsers = true;
+            
+        Configuration.ReplaceService<ISmtpEmailSenderConfiguration, MailConfiguration>();
+
+        SimpleMailTaskLocalizationConfigurer.Configure(Configuration.Localization);
+    }
+
+    public override void PostInitialize()
+    {
+        var workManager = IocManager.Resolve<IBackgroundWorkerManager>();
+        workManager.Add(IocManager.Resolve<TestJob>());
+    }
+}
+```
 
 
 
