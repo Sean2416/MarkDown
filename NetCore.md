@@ -2388,6 +2388,72 @@ services.AddMvc();
 
 
 
+## Appsetting
+
+- 安裝`Microsoft.AspNetCore`
+
+- 在**~CoreModule** 的建構子中載入 `HostingEnvironment`，並取得 `IConfigurationRoot`
+
+  ```C#
+  [DependsOn(typeof(AbpMailKitModule))]
+  public class SimpleMailTaskCoreModule : AbpModule
+  {
+      private readonly IConfigurationRoot _appConfiguration;
+  
+      public SimpleMailTaskCoreModule(IHostingEnvironment env)
+      {
+          _appConfiguration = AppConfigurations
+              .Get(env.ContentRootPath, env.EnvironmentName);
+      }
+  }
+  ```
+
+- 在`PreInitialize()`中透過DI註冊Config物件
+
+  ```C#
+  public override void PreInitialize()
+  {
+      IocManager.Register<MailServerConfig>();
+      //....
+  }
+  
+  ```
+
+- 在 `Initialize()` 透過 `Configuration.GetSection('Config')` 取得`Appsetting`中的對應物件並Bind至Config 物件
+
+  ```C#
+  public override void Initialize()
+  {    _appConfiguration.GetSection("MailServer")
+      .Bind(Configuration.Get<MailServerConfig>());          
+              
+  }
+  ```
+
+- Service中即可透過 **Inject** 取得
+
+  ```C#
+  public class MailConfiguration : ISmtpEmailSenderConfiguration
+  {     
+      public MailConfiguration(IAbpStartupConfiguration config)
+      {
+          var mailConfig = config.Get<MailServerConfig>();
+  
+          Host = mailConfig.Host;
+          Port = int.Parse(mailConfig.Port);
+          UserName = mailConfig.UserName;
+          Password = mailConfig.Password;
+          Domain = mailConfig.Domain;
+          DefaultFromAddress = mailConfig.DefaultFromAddress;
+          DefaultFromDisplayName = mailConfig.DefaultFromDisplayName;
+          EnableSsl = false;
+          UseDefaultCredentials = false;
+  
+      }
+  }
+  ```
+
+  
+
 
 
 
