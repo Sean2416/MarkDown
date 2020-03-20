@@ -1,5 +1,3 @@
-
-
 # Expression<TDelegate> 
 
 - 將強類型 Lambda 運算式表示為運算式樹狀結構形式的資料結構。
@@ -809,40 +807,18 @@ public class Member
 
 
 
-
+------
 
 # ASP.Net Boilerplate
 
-ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
-
-- **展現層（****Presentation**）：提供一個使用者介面，實現使用者交交互操作。
-
-- **基礎設施層（****Infrastructure**）：提供通用技術來支援更高的層。例如基礎設施層的倉儲(Repository)可通過ORM來實現資料庫交互。
-
-- **根據實際需要，可能會有額外添加的層。例如：**分散式服務層（**Distributed Service**）：用於公開應用程式接口供遠端用戶端調用。比如通過ASP.NET Web API或WCF來實現。這些都是常見的以領域為中心的分層體系結構。不同的項目在實現上可能會有細微的差別。
-
-  ![img](file:///C:/Users/6591/AppData/Local/Temp/msohtmlclip1/01/clip_image002.gif)
-
-  ![Startup template projects](https://raw.githubusercontent.com/aspnetboilerplate/aspnetboilerplate/master/doc/WebSite/Articles/Introduction-With-AspNet-Core-And-Entity-Framework-Core-Part-1/Template-Projects.png)
-
-- **.EntityFramework**
-  基礎設施層：EF框架、DbContext、實作倉儲介面、Migration資料庫遷移內含Seed預設資料列產生作業
-
-- **.Web** project is for ASP.NET MVC layer.
-
-- **.Tests** project is for unit and integration tests (up to application layer, excluding web layer)
-
-- **.Web.Tests** project is for ASP.NET Core integrated tests (complete integration test including the web layer).
-
-  
-
 ## Domain Layer
 
-- `.Core`包括業務物件和業務規則，這是應用程式的核心層。
-- 領域驅動設計(DDD)核心，內含***實體(Entity)***、***倉儲介面(Repository)***、***領域事件(Event)***、**工作單元(Unit of Work) ** 與 ***領域服務(Domain Services)***
+- `.Core`包括 **Domain Entity** 和 **Domain Logic**，這是應用程式的核心層。
+- 內含***資料表實體(Entity)***、***倉儲介面(Repository)***、***領域事件(Event)***、**工作單元(Unit of Work) ** 與 ***商業邏輯(Domain Services)***
 
 ### Entity
 
+-  對應資料表實體
 -  ASP.NET Boilerplate內的所有實體都需要繼承 `Entity` 
 
 #### ID
@@ -851,7 +827,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 #### Auditing
 
-- ABP還提供了IHasCreationTime這個介面來讓我們統一所有會使用到建立時間這個屬性的實體，藉此統一該屬性名稱為CreationTime 
+- ABP還提供了 **IHasCreationTime** 這個介面來統一該屬性**建立時間**名稱為 **CreationTime** 
 
   ```C#
   public interface IHasCreationTime
@@ -860,7 +836,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   }
   ```
 
-- **ICreationAudited** extends IHasCreationTime by adding **CreatorUserId**
+- **ICreationAudited** 除了 `CreationTime` 以外，還包含了**CreatorUserId**屬性
 
   ```C#
   public interface ICreationAudited : IHasCreationTime
@@ -869,9 +845,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   }
   ```
 
-- modifications
-
-  - ASP.NET Boilerplate automatically sets these properties when updating an entity. You just have to define them for your entity.
+- **Modifications**
 
   ```C#
   public interface IHasModificationTime
@@ -885,16 +859,15 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   }
   ```
 
-- If you want to implement all of the audit properties, you can directly implement the **IAudited** interface:
+- **IAudited**  包含了 `ICreationAudited` 、`IModificationAudited`
 
   ```C#
   public interface IAudited : ICreationAudited, IModificationAudited
   {
-  
   }
   ```
-
-- 可以直接繼承`**AuditedEntity**`包含了上述欄位內容
+  
+- 可以直接繼承`AuditedEntity`包含了上述欄位內容
 
   ```C#
   using Abp.Domain.Entities;
@@ -939,11 +912,9 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 #### Soft Delete
 
-- 透過 `IsDeleted` 欄位標註資料型態而非真的刪除
+- 繼承 **ISoftDelete** 的 Entity，在執行刪除動作時不會真的刪除資料。而是透過標記 `IsDeleted = True`進行刪除
 
-- Soft delete is a commonly used pattern to mark an Entity as deleted instead of actually deleting it from database. For instance, you may not want to hard delete a User from the database since it has many relations to other tables
-
-- ASP.NET Boilerplate implements the soft delete pattern out-of-the-box. When a soft-delete entity is being deleted, ASP.NET Boilerplate detects this, prevents deleting, sets IsDeleted as true, and then updates the entity in the database. It also does not retrieve (select) soft deleted entities from the database by automatically filtering them.
+-  查詢資料時，ABP也會自動過濾掉 `IsDeleted = True`的資料
 
   ```C#
   public interface ISoftDelete
@@ -963,7 +934,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   }
   ```
 
-- f you want to implement all the audit interfaces (creation, modification and deletion) for an entity, you can directly implement **IFullAudited** since it inherits from the others:
+- **IFullAudited**  繼承上述所有的延伸介面
 
   ```C#
   public interface IFullAudited : IAudited, IDeletionAudited
@@ -1025,9 +996,9 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 #### Active/Passive Entities
 
-- Implement the **IPassivable** interface that has been created for this reason. It defines the **IsActive** property.
+-  **IPassivable** 定義了 **IsActive** 屬性
 
-#### IExtendableObject Interface
+#### IExtendableObject
 
 - 用來儲存 **JSON formatted** 資料內容 (類似 `dictionary`)
 
@@ -1058,9 +1029,6 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   */
   ```
 
-  
-
-
 
 #### Create Entity And Context
 
@@ -1090,7 +1058,7 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 #### Value Object
 
 - 具有描述性類別而沒有 *identity* 概念的物件`VALUE OBJECT`
-- `Entity` 跟  `VALUE OBJECT` 差別在於 `Entity`代表了資料的實體(包含可唯一的識別碼)， `VALUE OBJECT` 只包含針對物件的描述性類別。ex. Imagine two different people that have the same Name, Surname and Age but are different people (their identity numbers are different). For an Address class (which is a classic Value Object), if the two addresses have the same Country, City, and Street number, etc, they are considered to be the same address.
+- `Entity` 跟  `VALUE OBJECT` 差別在於 `Entity`代表了資料的實體(包含可唯一的識別碼)， `VALUE OBJECT` 只包含針對物件的描述性類別。
 - In Domain Driven Design (DDD), the Value Object is another type of domain object which can include business logic and is an essential part of the domain.
 
 #### Base Classes
@@ -1148,8 +1116,8 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 - Repository提供一些通用的功能:
 
-  - **Get** is used to get an Entity with a given primary key (Id). It throws an exception if there is no entity in the database with the given Id
-  - **Single** method is similar to Get but takes an expression rather than an Id. This way, you can write a lambda expression to get an Entity。It throws an exception if there is no entity with the given conditions or where there is more than one entity.
+  - **Get** 可透過`Id`欄位取得資料，當沒有資料時會產生 `Exception`
+  - **Single** 透過 `expression<TDelegate> `取得資料，當資料筆數不為一筆時產生 `Exception`
   - **Load** does not retrieve the entity from the database but creates a proxy object for lazy-loading.
 
   ```C#
@@ -1169,9 +1137,11 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
   */
   ```
 
-- **GetAllList** method is used to retrieve all entities from the database. An overload of it can be used to filter entities.
+- **GetAllList** 可取得資料庫內的所有資料
 
-- **GetAllIncluding** allows to specify related data to be included in query results. In the following example, people will be retrieved with their Addresses property populated.
+- **GetAll** 也可以取得所有資料，差別在於 **GetAll**不會立即執行而是要等到 `.ToList()` 後才會真的連限至資料庫
+
+- **GetAllIncluding** 透過 `expression<TDelegate> `取得符合條件的資料
 
   ```C#
   List<TEntity> GetAllList();
@@ -1191,9 +1161,8 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 - ### Custom return value
 
-- There is also an additional method to provide the power of the IQueryable that can be usable out of a unit of work.
-
-  `T Query<T>(Func<IQueryable<TEntity>, T> queryMethod);`
+  - `T Query<T>(Func<IQueryable<TEntity>, T> queryMethod);`
+  - `Query`提供 **lambda** 來做查詢條件篩選
 
   ```C#
   var people = _personRepository.Query(q => q.Where(p => p.Name.Contains("H")).OrderBy(p => p.Name).ToList());
@@ -1237,21 +1206,18 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 - ### Database Connections
 
-  - A database connection is **opened** and a **transaction** automatically begins while entering a repository method
-  - When the method ends and returns, all changes are **saved**, the transaction is **committed** and the database connection is **closed** by ASP.NET Boilerplate. 
-  - If your repository method throws any type of Exception, the transaction is automatically **rolled back** and the database connection is closed.
-  - If a repository method calls another repository method (even a method of a different repository) they share the **same connection and transaction.**
-  -  The connection is managed (opened/closed) by the first method that enters a repository.
+  - 資料庫連線及交易的開啟在 **repository **被使用時自動啟動
+  - 當一個 Request 完成或一個 **UOW** 的方法結束後，連線會自動關閉 **transaction**也會自動提交
+  - 當 Request 中間產生 `Exception` 時， **transaction**會自動  **rolled back**並關閉連接
+  - 當有多個Repository出現時，會共用相同的連結及**transaction**。由第一個執行的Repo開啟
 
 ### Domain Services
 
-- Domain Services (or just Services in DDD) is used to ***perform domain operations and business rules.***
+- 用來進行商業邏輯的處理
 
-- Unlike [Application Services](https://aspnetboilerplate.com/Pages/Documents/Application-Services) which get/return [Data Transfer Objects](https://aspnetboilerplate.com/Pages/Documents/Data-Transfer-Objects), a Domain Service gets/returns **domain objects** (like [entities](https://aspnetboilerplate.com/Pages/Documents/Entities) or value types).
+- 僅能透過 **Application Services** 或 其他**Domain Services** 呼叫，不能提供外部接口
 
-- A Domain Service can be used by Application Services and other Domain Services, but not directly by the presentation layer (application services are for that).
-
--  **IDomainService interface** that is implemented by all domain services conventionally. When it's implemented, the domain service is **automatically registered** to the [Dependency Injection](https://aspnetboilerplate.com/Pages/Documents/Dependency-Injection) system as **transient**.
+- 繼承**IDomainService interface** 後就能以 **DI**的方式自動進行注入，提供其他地方呼叫
 
 - ### Example
 
@@ -1317,21 +1283,24 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
      }
      ```
 
-     
 
 ### Unit Of Work
 
-- ASP.NET Boilerplate **opens** a database connection and begins a **transaction** when **entering** a **unit of work method**.  At the end of the method, the transaction is **committed** and the connection is **disposed**. If the method throws an **exception**, the transaction is **rolled back**, and the connection is disposed.
+- 可以視為一個資料庫的生命週期
 
-- If a unit of work method calls another unit of work method, both use the same connection & transaction. The first entered method manages the connection & transaction and then the others reuse it.
+- ABP 透過**UOW** 來管理資料庫的**連線** 及 **Transaction**
+
+  - 進入UOW後開啟資料庫連線及Transaction
+  - 離開UOW後關閉連線及完成Transaction
+  - 中間若產生 **Exception**則關閉連線並 **rolled back**
+
+- 當產生兩個以上的 UOW  重疊時，以第一個進入點作為**連線** 及 **交易** 的起始。
 
 - Some methods are unit of work methods by default:
 
   - All [MVC](https://aspnetboilerplate.com/Pages/Documents/MVC-Controllers), [Web API](https://aspnetboilerplate.com/Pages/Documents/Web-API-Controllers) and [ASP.NET Core MVC](https://aspnetboilerplate.com/Pages/Documents/AspNet-Core) Controller actions.
   - All [Application Service](https://aspnetboilerplate.com/Pages/Documents/Application-Services) methods.
   - All [Repository](https://aspnetboilerplate.com/Pages/Documents/Repositories) methods.
-
-- The unit of work is ambient. If a unit of work method calls another unit of work method, they share the same connection and transaction. **The first method** manages the connection and then the other methods reuse it.
 
 - Example:
 
@@ -1366,9 +1335,9 @@ ABP遵循DDD（領域驅動設計）的原則，將工程分為四個層：
 
 ##### UnitOfWork Attribute
 
-- `CreatePerson` method becomes a unit of work and manages the database connection and transaction.
+- `[UnitOfWork]` 可定義下述方法為一個 **UOW**
 - Both repositories use the same unit of work.
-- Note that you do not need the UnitOfWork attribute if this is an application service method.
+- `Application Service` 不需要特別標註，預設就為一個 **UOW**.
 
 ```C#
 [UnitOfWork]
@@ -1382,9 +1351,9 @@ public void CreatePerson(CreatePersonInput input)
 
 ##### IUnitOfWorkManager
 
-- You can inject and use `IUnitOfWorkManager` as shown here (Some base classes already have **UnitOfWorkManager** injected by default: MVC Controllers, [application services](https://aspnetboilerplate.com/Pages/Documents/Application-Services), [domain services](https://aspnetboilerplate.com/Pages/Documents/Domain-Services)...). 
-- You can create a **limited scope** unit of work. Using this approach, you must call the **Complete** method manually.
-- If you don't call it, the transaction is **rolled back** and the changes are not saved.
+- 透過 `IUnitOfWorkManager` 可以自己定義開始及結束的範圍
+- `.Begin()`開啟一個UOW，並透過 `.Complete()`結束
+- 如果沒有執行`.Complete()`，在程式結束後所有交易會被 **rolled back**
 
 ```C#
 public class MyService
@@ -1451,8 +1420,7 @@ public GetTasksOutput GetTasks(GetTasksInput input)
 
 ##### Automatically Saving Changes
 
-- If a method is a unit of work, ASP.NET Boilerplate automatically saves all the changes at the end of the method.
-- `Repository` 取得的資料內容會與資料庫Binding。變更時，會自動更新資料庫內容 不需要使用 `_personRepository.Update`
+- 在 UOW 方法內透過 **repository** 取得的實體，在 UOW 結束後都會自動更新資料庫內容。不需要額外透過`.Update()`
 
 ```C#
 [UnitOfWork]
@@ -1470,14 +1438,10 @@ public GetTasksOutput GetTasks(GetTasksInput input)
  }
 ```
 
-![1584160575565](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1584160575565.png)
-
-
-
 #### IRepository.GetAll()
 
 - `IQueryable`使用 **延遲** 執行，`GetAll()`不會直接進行資料庫查詢直到使用 **ToList() **
-- The database connection must also be open when `IQueryable.ToList()` is executed.
+- 資料庫也會在 `IQueryable.ToList()` 執行之後才進行連線動作
 
 ```C#
 public SearchPeopleOutput SearchPeople(SearchPeopleInput input)
@@ -1531,9 +1495,7 @@ public class SimpleTaskSystemCoreModule : AbpModule
 
 #### Events
 
-- A unit of work has the **Completed**, **Failed** and **Disposed** events. You can register to these events and perform any operations you need.
-
--  For example, you may want to run some code when the current unit of work successfully completes. Example:
+- **UOW** 有提供行為對應的方法 ( **Completed**, **Failed** and **Disposed**)，可以透過註冊這些方法來做後續操作
 
   ```C#
   public void CreateTask(CreateTaskInput input)
@@ -1556,7 +1518,7 @@ public class SimpleTaskSystemCoreModule : AbpModule
 
 - The EventBus is a **singleton** object that is shared by other classes to trigger and handle events.
 
-#### 1. Injecting IEventBus
+####  1. Injecting IEventBus
 
 1. use **DI** to get a reference to the **IEventBus**
 
@@ -1572,8 +1534,6 @@ public class SimpleTaskSystemCoreModule : AbpModule
    }
    ```
 
-   
-
 2. Getting The **Default Instance**
 
    - If you can not inject it, you can directly use **EventBus.Default**. 
@@ -1583,7 +1543,7 @@ public class SimpleTaskSystemCoreModule : AbpModule
    EventBus.Default.Trigger(...); //trigger an event
    ```
 
-#### 2. Defining Events
+####  2. 定義新的事件介面
 
 - Event 需要繼承 `EventData`
 
@@ -1599,59 +1559,60 @@ public class SimpleTaskSystemCoreModule : AbpModule
   }
   ```
 
-#### 3. Triggering Events
+####  3. 事件觸發
 
-- 執行 `EventBus.Trigger` 就可以觸發TaskCompletedEventData事件
+- 執行 `EventBus.Trigger` 就可以觸發**TaskCompletedEventData**事件
 
-```C#
-public class TaskAppService : ApplicationService
-{
-    public IEventBus EventBus { get; set; }
+  ```C#
+  public class TaskAppService : ApplicationService
+  {
+      public IEventBus EventBus { get; set; }
+  
+      public TaskAppService()
+      {
+          EventBus = NullEventBus.Instance;
+      }
+  
+      public void CompleteTask(CompleteTaskInput input)
+      {
+          //TODO: complete the task in the database...
+          EventBus.Trigger(new TaskCompletedEventData {TaskId = 42});
+      }
+  }
+  ```
 
-    public TaskAppService()
-    {
-        EventBus = NullEventBus.Instance;
-    }
-
-    public void CompleteTask(CompleteTaskInput input)
-    {
-        //TODO: complete the task in the database...
-        EventBus.Trigger(new TaskCompletedEventData {TaskId = 42});
-    }
-}
-```
-
-#### 4. Handling Events
+####  4. 實作事件處理
 
 - To handle an event, you should implement the **IEventHandler<T>** interface
+
 - 所有有繼承 `IEventHandler<TaskCompletedEventData>` 都會在 `EventBus.Trigger(new TaskCompletedEventData {TaskId = 42});` 觸發時執行。
 
-```C#
-public class Act1 : IEventHandler<TaskCompletedEventData>, ITransientDependency
-{
-    public void HandleEvent(TaskCompletedEventData eventData)
-    {
-        WriteActivity("A task is completed by id = " + eventData.TaskId);
-    }
-}
-
-public class Act2 : IEventHandler<TaskCompletedEventData>, ITransientDependency
-{
-    public void HandleEvent(TaskCompletedEventData eventData)
-    {
-  	  Console.WriteLine("This is the Second Event");
-    }
-}
-```
+  ```C#
+  public class Act1 : IEventHandler<TaskCompletedEventData>, ITransientDependency
+  {
+      public void HandleEvent(TaskCompletedEventData eventData)
+      {
+          WriteActivity("A task is completed by id = " + eventData.TaskId);
+      }
+  }
+  
+  public class Act2 : IEventHandler<TaskCompletedEventData>, ITransientDependency
+  {
+      public void HandleEvent(TaskCompletedEventData eventData)
+      {
+    	  Console.WriteLine("This is the Second Event");
+      }
+  }
+  ```
 
 #### Predefined Events
 
-#####  Handled Exceptions
+#####   Handled Exceptions
 
 - ASP.NET Boilerplate defines **AbpHandledExceptionData** and triggers this event when it automatically handles an exception. 
 - This is especially useful if you want to get more information about exceptions. You can register to this event to be informed when an exception occurs.
 
-#####  Entity Changes
+#####   Entity Changes
 
 - There are also generic event data classes for entity changes
 - A change can be insert, update or delete.
@@ -1708,9 +1669,6 @@ public class Act2 : IEventHandler<TaskCompletedEventData>, ITransientDependency
   }
   ```
 
-  ![1584203073281](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1584203073281.png)
-
-
 
 #### Handling Multiple Events
 
@@ -1738,11 +1696,9 @@ public class ActivityWriter :
 
 ## Data Filters
 
--  Boilerplate provides **data filters** that can be used to automatically filter queries based on some rules.
+####  Pre-Defined Filters
 
-#### Pre-Defined Filters
-
-#####  ISoftDelete
+#####   ISoftDelete
 
 - 當`Entity `繼承了 `ISoftDelete` 後，資料就不會進行實際的刪除動作。而是在欄位 `IsDeleted` 標註為刪除
 
@@ -1859,8 +1815,10 @@ public class ActivityWriter :
 - The `SetFilterParameter` method also returns an IDisposable. So, we can use it in a **using** statement to automatically **restore the old value** after the using statement.
 
   `CurrentUnitOfWork.SetFilterParameter("PersonFilter", "personId", 42);`
+  
+  
 
-
+------
 
 ## Application Layer
 
@@ -2164,7 +2122,91 @@ public class ActivityWriter :
       }
   ```
 
+
+### Object To Object Mapping
+
+- 用來將物件結合至另一個物件
+
+- **IObjectMapper ** 提供`map` 將來源物件`input `轉換成目標物件`User `
+
+  ```C#
+  public class UserAppService : ApplicationService
+  {
+      private readonly IRepository<User> _userRepository;
+      private readonly IObjectMapper _objectMapper;
   
+      public UserAppService(IRepository<User> userRepository, IObjectMapper objectMapper)
+      {
+          _userRepository = userRepository;
+          _objectMapper = objectMapper;
+      }
+  
+      public void CreateUser(CreateUserInput input)
+      {
+          var user = _objectMapper.Map<User>(input);
+          _userRepository.Insert(user);
+      }
+  }
+  ```
+
+- `map` 也可以將來源直接轉換成已存在的物件
+
+  - 以下為例， input 會轉換成**user** 類別，並將 input中的欄位內容取代原本的欄位
+  - 由於 **UIO** 的特性，User會在Request結束後自動更新資料庫。
+
+  ```C#
+  public void UpdateUser(UpdateUserInput input)
+  {
+      var user = _userRepository.Get(input.Id);
+      _objectMapper.Map(input, user);
+  }
+  ```
+
+#### AutoMapper Integration
+
+- **Abp.AutoMapper** 套件實作 `IObjectMapper` 及附加其他功能
+
+  1. `Install-Package Abp.AutoMapper`
+
+  2. 在 `~Module` 加上dependency
+
+     ```C#
+     [DependsOn(typeof(AbpAutoMapperModule))]
+     public class MyModule : AbpModule
+     {
+         ...
+     }
+     ```
+
+- ##### Auto Mapping Attributes
+
+  - Most of the time you may only want to directly (and conventionally) map classes. In this case, you can use the **AutoMap**, **AutoMapFrom** and **AutoMapTo** attributes. 
+
+  - 要特別注意 **From **跟 **To** 問題
+
+  - ##### Custom Mapping
+
+    - 假設兩個類別有些欄位相同但名稱相異，或有些欄位需要隱藏時可使用 `Abp.AutoMapper` 提供客製化的mapping功能
+
+      ```C#
+      [DependsOn(typeof(AbpAutoMapperModule))]
+      public class MyModule : AbpModule
+      {
+          public override void PreInitialize()
+          {
+              Configuration.Modules.AbpAutoMapper().Configurators.Add(config =>
+              {
+                  config.CreateMap<CreateUserInput, User>()
+                        .ForMember(u => u.Password, options => options.Ignore())
+                        .ForMember(u => u.Email, options => options.MapFrom(input => input.EmailAddress));
+              });
+          }
+      }
+      ```
+
+    - Auto Mapper has many more options and abilities for object to object mapping. See it's [documentation](http://automapper.org/) for more info.
+
+
 
 ## Background  Service
 
@@ -2288,7 +2330,41 @@ public class SimpleMailTaskCoreModule : AbpModule
 
 
 
-## API 開發順序
+## Web API
+
+- ABP 預設將 **Public** 並繼承 **IApplicationService** 的Service視為WebApi
+- 預設為**Post**方法，並透過**前贅字命名**的方式定Http 的方法
+  - **Get**: Used if the method name starts with 'Get'.
+  - **Put**: Used if the method name starts with 'Put' or 'Update'.
+  - **Delete**: Used if the method name starts with 'Delete' or 'Remove'.
+  - **Post**: Used if the method name starts with 'Post', 'Create' or 'Insert'.
+  - **Patch**: Used if the method name starts with 'Patch'.
+  - Otherwise, **Post** is used **by default** as an HTTP verb.
+
+- Service內的方法可透過 **RemoteService** 定義是否可由外部連接
+
+  ```C#
+  [RemoteService(false)]
+  public ListResultDto<MonthlyReportOutPutDto> GetMonthlyReport(SearchCustomerReportDto input)
+  {
+      var result = _Repository.GetAll()
+          .Where(col => col.CustomerName.Equals(input.CustomerName))
+          .ToList();
+  
+      return new ListResultDto<MonthlyReportOutPutDto>(
+          ObjectMapper.Map<List<MonthlyReportOutPutDto>>(result));
+   }
+  ```
+
+### 錯誤處理
+
+- **ABP** 自動將 Exception包入 **AbpExceptionFilter**，錯誤內容會以 **Json** 的形式回傳 
+  - `AbpAuthorizationException` 回傳 **401 (unauthorized)**
+  - `AbpValidationException` 回傳 **400 (bad request)**
+  - `EntityNotFoundException` 回傳 **404 (not found)**
+  - `Exception`、`UserFriendlyException`回傳 **500 (internal server error)**
+
+###  開發順序
 
 1.  在`.Core `新建資料實體，並繼承 ABP`Entity`
 
@@ -2317,11 +2393,10 @@ public class SimpleMailTaskCoreModule : AbpModule
        public SimpleTaskAppDbContext(DbContextOptions<SimpleTaskAppDbContext> options) 
            : base(options)
        {
-   
        }
    }
    ```
-
+   
 3. 建立 `Migiration`
 
    - 將 設為起始專案
@@ -2349,9 +2424,7 @@ services.AddControllersWithViews(options =>
 services.AddMvc();
 ```
 
-
-
-## Swagger Ui
+### Swagger Ui
 
 1. Install the `Swashbuckle.AspNetCore` NuGet package to your **Web** project.
 2. 在 `startup.cs` 新增相關Swagger設定，可參考上面Swagger章節
