@@ -1,4 +1,4 @@
-# Expression<TDelegate> 
+Expression<TDelegate> 
 
 - 將強類型 Lambda 運算式表示為運算式樹狀結構形式的資料結構。
 
@@ -2213,12 +2213,12 @@ public class ActivityWriter :
 ### Background Jobs
 
 - 一次性的背景服務
-- Background jobs are used to queue some tasks to be executed in the background
+- 所有的J **jobs**都會排入佇列中依序執行
 - You may need background jobs for several reasons.
-  - To perform **long-running tasks** without having the users wait.
+  - 執行時間過長，使用者不需要即時的Response.
     - EX. 使用者透過API進行報表查詢及Mail發送
-  - To create **re-trying** and **persistent tasks** to **guarantee** code will be **successfully executed**. 
-    - .For example, you can send emails in a background job to overcome **temporary failures** and **guarantee** that it eventually will be sent. That way users do not wait while sending emails.
+  - 需要重複嘗試直到任務成功 
+    - For example, you can send emails in a background job to overcome **temporary failures** and **guarantee** that it eventually will be sent. That way users do not wait while sending emails.
 
 ####  Create a Background Job
 
@@ -2244,7 +2244,7 @@ public class ActivityWriter :
     }
     ```
 
-- Service 透過 `IBackgroundJobManager`執行
+- Service 透過 `IBackgroundJobManager`呼叫
 
   ```C#
   public class UserAppService : SimpleMailTaskAppServiceBase, IUserAppService
@@ -2273,6 +2273,10 @@ public class ActivityWriter :
   ```
 
 - 使用者的Request完成後會直接回傳結果，而背景服務在停留10秒後繼續執行不會影響到使用者
+
+- **BackgroundJobManager** 
+
+  - 採用先進先出的方式執行，並使用單一執行序
 
 ### Background Workers
 
@@ -2328,17 +2332,80 @@ public class SimpleMailTaskCoreModule : AbpModule
 }
 ```
 
+#### Quatz (排程)
+
+- 與 **worker**的差別在於worker第一次不會執行，要等到 `timer` 到了才會開啟
+
+- 排程會在Service啟動時候執使行，並持續執行`Timer`
+
+- 使用  [**Abp.Quartz**](https://www.nuget.org/packages/Abp.Quartz) 
+
+  1. NuGet 安裝套件
+
+  2. 在`~Module`上加入`typeof (AbpQuartzModule)`
+
+     ```C#
+     [DependsOn(typeof (AbpQuartzModule))]
+     public class YourModule : AbpModule
+     {
+         //...
+     }
+     ```
+
+  3. 新增排程任務
+
+     -  implement Quartz's IJob interface, or derive from the JobBase class
+
+     ```C#
+     public class MonthlyReportSchedule : JobBase, ITransientDependency
+     {
+         [UnitOfWork]
+         public override Task Execute(IJobExecutionContext context)
+         {
+             Console.WriteLine("Executed MyLogJob..!");
+     
+             return Task.CompletedTask;
+         }
+     }
+   ```
+  
+  4. 在 `~Module` 或 其他接口 Inject **IQuartzScheduleJobManager** 註冊排程
+  
+     ```C#
+     public override void PostInitialize()
+     {
+         var jobManager = IocManager.Resolve<IQuartzScheduleJobManager>();
+     
+         jobManager.ScheduleAsync<MonthlyReportSchedule>(
+         job =>
+         {
+             job.WithIdentity("MonthlyReportSchedule", "MyGroup")
+                 .WithDescription("A job to Create Monthly Report And Send Mail");
+         },
+         trigger =>
+         {
+             trigger.StartNow()
+                 .WithSimpleSchedule(schedule =>
+                 {
+                     schedule.RepeatForever()
+                         .WithIntervalInMinutes(10)
+                         .Build();
+                 });
+         });
+     }
+     ```
+
 
 
 ## Web API
 
 - ABP 預設將 **Public** 並繼承 **IApplicationService** 的Service視為WebApi
 - 預設為**Post**方法，並透過**前贅字命名**的方式定Http 的方法
-  - **Get**: Used if the method name starts with 'Get'.
-  - **Put**: Used if the method name starts with 'Put' or 'Update'.
-  - **Delete**: Used if the method name starts with 'Delete' or 'Remove'.
-  - **Post**: Used if the method name starts with 'Post', 'Create' or 'Insert'.
-  - **Patch**: Used if the method name starts with 'Patch'.
+  - **Get**: Used if the method name starts with ***Get***.
+  - **Put**: Used if the method name starts with ***Put*** or ***Update***.
+  - **Delete**: Used if the method name starts with ***Delete*** or ***Remove***.
+  - **Post**: Used if the method name starts with ***Post*** ,  ***Create***  or ***Insert***.
+  - **Patch**: Used if the method name starts with ***Patch***.
   - Otherwise, **Post** is used **by default** as an HTTP verb.
 
 - Service內的方法可透過 **RemoteService** 定義是否可由外部連接
