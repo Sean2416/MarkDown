@@ -1,3 +1,5 @@
+
+
 Expression<TDelegate> 
 
 - 將強類型 Lambda 運算式表示為運算式樹狀結構形式的資料結構。
@@ -2206,7 +2208,68 @@ public class ActivityWriter :
 
     - Auto Mapper has many more options and abilities for object to object mapping. See it's [documentation](http://automapper.org/) for more info.
 
+### Validating-Data-Transfer-Objects
 
+#### Using data annotations
+
+- ASP.NET Boilerplate 支援欄位驗證的屬性 `Required`...
+
+- There are also many attributes (like `MaxLength`, `MinLength`, `RegularExpression`...) in the **System.ComponentModel.DataAnnotations** namespace. 
+
+  ```C#
+  public class CreateTaskInput
+  {
+      public int? AssignedPersonId { get; set; }
+  
+      [Required]
+      public string Description { get; set; }
+  }
+  ```
+
+#### Custom Validation
+
+- DTO 繼承 `ICustomValidate ` 可透過實作 **AddValidationErrors** 來作客製化驗證
+
+- In addition to ICustomValidate, ABP also supports **.NET's standard IValidatableObject interface**. You can also implement it to perform additional custom validations. If you implement both interfaces, both of them will be called.
+
+  ```C#
+     public class SearchUserInput : ICustomValidate
+      {        
+          public string TaskId { get; set; }
+  
+          public void AddValidationErrors(CustomValidationContext context)
+          {
+              if (string.IsNullOrEmpty(TaskId))
+              {
+                  context.Results.Add(
+                  new ValidationResult("TaskId Should No Be Null!"));
+              }
+          }
+      }
+  ```
+
+#### Normalization
+
+- 可在 DTO 驗證過後進行後續動作
+
+- 繼承 **IShouldNormalize** 並實作 `Normalize `
+
+  ```C#
+  public class GetTasksInput : IShouldNormalize
+  {
+      public string Sorting { get; set; }
+  
+      public void Normalize()
+      {
+          if (string.IsNullOrWhiteSpace(Sorting))
+          {
+              Sorting = "Name ASC";
+          }
+      }
+  }
+  ```
+
+  
 
 ## Background  Service
 
@@ -2367,7 +2430,8 @@ public class SimpleMailTaskCoreModule : AbpModule
              return Task.CompletedTask;
          }
      }
-   ```
+     ```
+   ```C#
   
   4. 在 `~Module` 或 其他接口 Inject **IQuartzScheduleJobManager** 註冊排程
   
@@ -2384,7 +2448,9 @@ public class SimpleMailTaskCoreModule : AbpModule
          },
          trigger =>
          {
-             trigger.StartNow()
+             trigger
+                // .StartAt(DateTime.Parse(DateTime.Now.ToString("yyyy/MM/dd 14:27:00"))) 決定啟動時機
+                 .StartNow()
                  .WithSimpleSchedule(schedule =>
                  {
                      schedule.RepeatForever()
@@ -2393,7 +2459,7 @@ public class SimpleMailTaskCoreModule : AbpModule
                  });
          });
      }
-     ```
+   ```
 
 
 
@@ -2594,9 +2660,251 @@ services.AddMvc();
 
   
 
+## Multiple Database
 
+- 實作方法: 
 
+  - 透過不同的DbContext決定每一個Entity連線的資料庫。
+  - 亦即，同一個Entity無法再不同DbContext中
 
+- 建置步驟:
+
+  1.  新增資料庫連線字串 `appsettings.json`
+
+     ```C#
+     "ConnectionStrings": {
+       "MsSql": "Server=localhost\\SQLExpress01; Database=MultipleDataBaseDb; Trusted_Connection=True;",
+       "MySql": "Server=localhost;Database=SOC_DashBord;Uid=root;Pwd=root;"
+     }
+     ```
+
+  2.   新增第二個字串名稱對應 `.core/ ~Consts`
+
+     ```C#
+     public class MultipleDataBaseConsts
+     {
+         public const string LocalizationSourceName = "MultipleDataBase";
+     
+         public const string ConnectionStringName = "MsSql";
+     
+         public const string MySqlConnectionStringName = "MySql";
+     }
+     ```
+
+  3. 建立Entity
+
+     ```C#
+     [Table("Flow")]
+     public class Flow : Entity, IHasCreationTime
+     {
+         public virtual string DevID { get; set; }
+         //....
+     }
+     
+     [Table("Flow")]
+     public class FlowLog : Entity, IHasCreationTime
+     {
+         public virtual string DevID { get; set; }
+         //....
+     }
+     ```
+
+  4.  將第一個資料庫的Entity加入DbContext中
+
+     ```C#
+     public class MultipleDataBaseDbContext : AbpDbContext
+     {
+         public DbSet<Flow> Flows { get; set; }
+     
+         public MultipleDataBaseDbContext(DbContextOptions<MultipleDataBaseDbContext> options) 
+             : base(options)
+         {
+     
+         }
+     }
+     ```
+
+  5. 在 `.EntityFrameworkCore`內建立第二個DbContext ，**SecondDbContext**
+
+     ```C#
+     public class SecondDbContext : AbpDbContext
+     {
+         public DbSet<FlowLog> FlowLogs { get; set; }
+     
+         public SecondDbContext(DbContextOptions<SecondDbContext> options) 
+             : base(options)
+         {
+     
+         }
+     }
+     ```
+
+  6. **DbContextConfigurer** 調整 (如果有需要，ex.變更資料庫為MySql)
+
+  7. 在 `.EntityFrameworkCore`內新增第二個DbContextConfigure，**SecondDbContextConfigurer**
+
+     ```C#
+     public static class SecondDbContextConfigurer
+     {
+         public static void Configure(
+             DbContextOptionsBuilder<SecondDbContext> dbContextOptions, 
+             string connectionString
+             )
+         {
+             dbContextOptions.UseMySql(connectionString);
+         }
+         public static void Configure(DbContextOptionsBuilder<SecondDbContext> builder, DbConnection connection)
+         {
+             builder.UseMySql(connection);
+         }
+     }
+     ```
+
+  8. 在 `.EntityFrameworkCore`內新增第二個Factory，**SecondDbFactory**
+
+     ```C#
+     public class SecondDbFactory : IDesignTimeDbContextFactory<SecondDbContext>
+     {
+         public SecondDbContext CreateDbContext(string[] args)
+         {
+             var builder = new DbContextOptionsBuilder<SecondDbContext>();
+     
+             var configuration = AppConfigurations.Get(WebContentDirectoryFinder.CalculateContentRootFolder());
+     
+             SecondDbContextConfigurer.Configure(builder, configuration.GetConnectionString(MultipleDataBaseConsts.MySqlConnectionStringName));
+     
+             return new SecondDbContext(builder.Options);
+         }
+     }
+     ```
+
+  9.  在 `.EntityFrameworkCore`內新增 **MyConnectionStringResolver**
+
+     ```C#
+     public class MyConnectionStringResolver : DefaultConnectionStringResolver
+     {
+     
+         public MyConnectionStringResolver(IAbpStartupConfiguration configuration)
+             : base(configuration)
+         {
+         }
+     
+         public override string GetNameOrConnectionString(ConnectionStringResolveArgs args)
+         {
+             if (args["DbContextConcreteType"] as Type == typeof(SecondDbContext))
+             {
+                 var configuration = AppConfigurations.Get(WebContentDirectoryFinder.CalculateContentRootFolder());
+                 return configuration.GetConnectionString(MultipleDataBaseConsts.MySqlConnectionStringName);
+             }
+     
+             return base.GetNameOrConnectionString(args);
+         }
+     }
+     ```
+
+  10. 調整 `~EntityFrameworkCoreModule`，將 **MyConnectionStringResolver **取代 **IConnectionStringResolver**，並調整 `PreInitialize()`
+
+      ```C#
+      public override void PreInitialize()
+      {
+          Configuration.ReplaceService<IConnectionStringResolver, MyConnectionStringResolver>();
+      
+           // Configure first DbContext
+          Configuration.Modules.AbpEfCore().AddDbContext<MultipleDataBaseDbContext>(options =>
+          {
+              if (options.ExistingConnection != null)
+              {
+                  DbContextOptionsConfigurer.Configure(options.DbContextOptions, options.ExistingConnection);
+              }
+              else
+              {
+                  DbContextOptionsConfigurer.Configure(options.DbContextOptions, options.ConnectionString);
+              }
+          });
+          
+      // Configure second DbContext
+          Configuration.Modules.AbpEfCore().AddDbContext<SecondDbContext>(options =>
+          {
+              if (options.ExistingConnection != null)
+              {
+                  SecondDbContextConfigurer.Configure(options.DbContextOptions, options.ExistingConnection);
+              }
+              else
+              {
+                  SecondDbContextConfigurer.Configure(options.DbContextOptions, options.ConnectionString);
+              }
+          });
+      }
+      ```
+
+  11. 測試
+
+      ```C#
+      public class DBCopySchedule : JobBase, ITransientDependency
+      {
+          private readonly IRepository<Flow> _ReportRepository;
+          private readonly IRepository<FlowLog> _LogRepository;
+      
+          public DBCopySchedule(
+              IRepository<Flow> ReportRepository,
+              IRepository<FlowLog> logRepository
+              )
+          {
+              _ReportRepository = ReportRepository;
+              _LogRepository = logRepository;
+          }
+      
+          [UnitOfWork]
+          public override Task Execute(IJobExecutionContext context)
+          {
+              try
+              {
+                  Console.WriteLine("Executed MyLogJob..!");
+                  CreateFlowLog(GetLogData());
+                  return Task.CompletedTask;
+              }
+              catch (Exception ex)
+              {
+                  Console.WriteLine($"Error Comes From Mail Service : {ex.Message}");
+                  throw new Exception("Something awful happened", ex, false);
+              }
+          }
+      
+          private List<FlowLog> GetLogData()
+          {
+              //Get Data From MySql
+              var flowList = _LogRepository.GetAll().ToList();
+              return flowList;
+          }
+      
+          private void CreateFlowLog(List<FlowLog> flowList)
+          {
+              try
+              {         
+              	//Write Data In MSSqlDB     
+                  foreach (var flow in flowList)
+                      _ReportRepository.Insert(new Flow
+                      {
+                          Proto = 999,
+                          DevID = flow.DevID,
+                          Dhost = flow.Dhost,
+                          Act = flow.Act,
+                          Stime = flow.Stime,
+                          Sip = flow.Sip,
+                          Dip = flow.Dip,
+                      });
+      
+                  flowList.First().Proto = 888;
+              }
+              catch (Exception ex)
+              {
+                  Console.WriteLine($"Error Comes From Mail Service : {ex.Message}");
+              }
+          }
+      }
+      ```
+
+      
 
 # 參考資料
 
@@ -2605,144 +2913,5 @@ services.AddMvc();
 3. [ASP.Net Boilerplate](https://aspnetboilerplate.com/)
 4. [ABP (ASP.NET Boilerplate) 應用程式開發框架新手教學](https://dotblogs.com.tw/jakeuj/2016/07/27/abp3)
 5. [Volo.ABP](https://docs.abp.io/en/abp/latest/Getting-Started-AspNetCore-MVC-Template)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+6. [Multiple DB Setting](https://stackoverflow.com/questions/49243891/how-to-use-multiples-databases-in-abp-core-zero)
 
