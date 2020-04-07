@@ -2993,32 +2993,34 @@ services.AddMvc();
      }
      ```
 
-  9.  在 `.EntityFrameworkCore`內新增 **MyConnectionStringResolver**
+  9. 在 `.EntityFrameworkCore`內新增 **MyConnectionStringResolver**
 
      ```C#
      public class MyConnectionStringResolver : DefaultConnectionStringResolver
      {
+         private readonly IConfigurationRoot _appConfiguration;
      
-         public MyConnectionStringResolver(IAbpStartupConfiguration configuration)
+         public MyConnectionStringResolver(IAbpStartupConfiguration configuration, IWebHostEnvironment hostingEnvironment)
              : base(configuration)
          {
+             _appConfiguration =
+                 AppConfigurations.Get(hostingEnvironment.ContentRootPath, hostingEnvironment.EnvironmentName);
          }
      
          public override string GetNameOrConnectionString(ConnectionStringResolveArgs args)
          {
-             if (args["DbContextConcreteType"] as Type == typeof(SecondDbContext))
+             if (args["DbContextConcreteType"] as Type == typeof(EyeCloudDbContext))
              {
-                 var configuration = AppConfigurations.Get(WebContentDirectoryFinder.CalculateContentRootFolder());
-                 return configuration.GetConnectionString(MultipleDataBaseConsts.MySqlConnectionStringName);
+                 return _appConfiguration.GetConnectionString(SOC_ETLServiceConsts.EyeCloudConnectionStringName);
              }
      
              return base.GetNameOrConnectionString(args);
          }
-     }
+   }
      ```
 
   10. 調整 `~EntityFrameworkCoreModule`，將 **MyConnectionStringResolver **取代 **IConnectionStringResolver**，並調整 `PreInitialize()`
-
+  
       ```C#
       public override void PreInitialize()
       {
@@ -3049,11 +3051,11 @@ services.AddMvc();
                   SecondDbContextConfigurer.Configure(options.DbContextOptions, options.ConnectionString);
               }
           });
-      }
+    }
       ```
 
   11. 測試
-
+  
       ```C#
       public class DBCopySchedule : JobBase, ITransientDependency
       {
@@ -3119,7 +3121,97 @@ services.AddMvc();
       }
       ```
 
-      
+
+
+## User Manager
+
+- **AbpUser** 內包含了APB對於User的基本定義
+  - **UserName**: Login name of the user. Should be **unique** for a [tenant](https://aspnetboilerplate.com/Pages/Documents/Zero/Tenant-Management).
+  - **EmailAddress**: Email address of the user. Should be **unique** for a [tenant](https://aspnetboilerplate.com/Pages/Documents/Zero/Tenant-Management).
+  - **Password**: Hashed password of the user.
+  - **IsActive**: True, if this user can login to the application.
+  - **Name** and **Surname** of the user.
+  - **FullAuditedEntity**內定義的延伸欄位
+- 可自行新增欄位，只要Entity修正後新增database migrations並更新資料庫即可
+
+### User Manager
+
+- **UserManager**是ABP用來處理User相關Domain Logic的Service
+- 內部有提供一些方法可以執行，或可以透過 **override** 進行覆寫
+
+### User Login
+
+- ABP預先定義了 **LoginManager** 來處理登入的相關邏輯。
+- **LoginAsync** 自動儲存所有的登入行為，可以透過 **UserLoginAttempt**  查詢
+
+### Authentication
+
+- ABP 預設使用 JWT Token進行驗證。
+
+  1. 使用者透過帳號/密碼進行登入
+  2. ABP驗證使用者登入資訊
+  3. 驗證成功，產生Token
+  4. 使用者在Token失效前皆可透過Token進行操作
+
+- Token驗證資訊的設定放在 `appsettings.json`
+
+- 如同一般的 JWT 驗證，只有驗證設定的內容一致即使是誇Service也可以使用同一個Token
+
+  ```C#
+  "Authentication": {
+      "JwtBearer": {
+        "IsEnabled": "true",
+        "SecurityKey": "SOC_DashBord_C421AAEE0D114E9C",
+        "Issuer": "SOC_DashBord",
+        "Audience": "SOC_DashBord"
+      }
+    }
+  ```
+
+- ### External Authentication
+
+  - **UserManager ** 提供覆寫驗證方式的功能。只需要繼承 **IExternalAuthenticationSource** 或 **DefaultExternalAuthenticationSource** 
+
+  ```C#
+  public class MyExternalAuthSource : DefaultExternalAuthenticationSource<Tenant, User>, ITransientDependency
+  {
+      public override string Name
+      {
+          get { return "MyCustomSource"; }
+      }
+  
+      public override Task<bool> TryAuthenticateAsync(string userNameOrEmailAddress, string plainPassword, Tenant tenant)
+      {
+          //TODO: authenticate user and return true or false
+          return Task.FromResult(true);
+      }
+  }
+  ```
+
+  - 在 `TryAuthenticateAsync` 方法裡面，可以直接實作自己的驗證方式並回傳是否驗證成功
+
+  - 另外，也可以覆寫`CreateUser ` 及 `UpdateUser`變更使用者的新增及更新
+
+  - 當使用外部驗證時，ABP會自動確認資料庫內是否有包含這個User。
+
+    - 沒有，則新增User資料
+    - 有，則更新User
+
+  - 新增完驗證Service後，再透過DI的方式加入至`~module` 中
+
+    ```C#
+    Configuration.Modules.Zero().UserManagement.ExternalAuthenticationSources.Add<MyExternalAuthSource>();
+    ```
+
+    
+
+
+
+
+
+
+
+------
 
 # 參考資料
 
