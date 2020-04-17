@@ -1,4 +1,4 @@
-# Expression<TDelegate> 
+# **Description**:Expression<TDelegate> 
 
 - 將強類型 Lambda 運算式表示為運算式樹狀結構形式的資料結構。
 
@@ -11,7 +11,7 @@
   Console.WriteLine("deleg(4) = {0}", deleg(4));
   
   // Lambda expression as data in the form of an expression tree.
-  Sy	stem.Linq.Expressions.Expression<Func<int, bool>> expr = i => i < 5;
+  System.Linq.Expressions.Expression<Func<int, bool>> expr = i => i < 5;
   // Compile the expression tree into executable code.
   Func<int, bool> deleg2 = expr.Compile();
   // Invoke the method and print the output.
@@ -3051,7 +3051,7 @@ services.AddMvc();
                   SecondDbContextConfigurer.Configure(options.DbContextOptions, options.ConnectionString);
               }
           });
-    }
+      }
       ```
 
   11. 測試
@@ -3123,7 +3123,7 @@ services.AddMvc();
 
 
 
-## User Manager
+## User
 
 - **AbpUser** 內包含了APB對於User的基本定義
   - **UserName**: Login name of the user. Should be **unique** for a [tenant](https://aspnetboilerplate.com/Pages/Documents/Zero/Tenant-Management).
@@ -3132,12 +3132,68 @@ services.AddMvc();
   - **IsActive**: True, if this user can login to the application.
   - **Name** and **Surname** of the user.
   - **FullAuditedEntity**內定義的延伸欄位
+  
 - 可自行新增欄位，只要Entity修正後新增database migrations並更新資料庫即可
+
+  ```C#
+  [Table("User")]
+  public class User : AbpUser<User>
+  {
+      public const string DefaultPassword = "123qwe";
+  
+      public virtual string CustomerColumn { get; set;}
+   }
+  ```
 
 ### User Manager
 
 - **UserManager**是ABP用來處理User相關Domain Logic的Service
+
 - 內部有提供一些方法可以執行，或可以透過 **override** 進行覆寫
+
+- 在**multi-tenant**的狀態下，**UserManager**只會針對現在登入(session)的tenant進行處理
+
+  - 針對tenant的處理範例
+
+    ```C#
+    public class MyTestAppService : ApplicationService
+    {
+        private readonly UserManager _userManager;
+    
+        public MyTestAppService(UserManager userManager)
+        {
+            _userManager = userManager;
+        }
+    
+        public void TestMethod_1()
+        {
+            //Find a user by email for current tenant
+            var user = _userManager.FindByEmail("sampleuser@aspnetboilerplate.com");
+        }
+    
+        public void TestMethod_2()
+        {
+            //Switch to tenant 42
+            CurrentUnitOfWork.SetFilterParameter(AbpDataFilters.MayHaveTenant, AbpDataFilters.Parameters.TenantId, 42);
+    
+            //Find a user by email for tenant 42
+            var user = _userManager.FindByEmail("sampleuser@aspnetboilerplate.com");
+        }
+    
+        public void TestMethod_3()
+        {
+            //Disabling MayHaveTenant filter, so we can reach all users
+            using (CurrentUnitOfWork.DisableFilter(AbpDataFilters.MayHaveTenant))
+            {
+                //Now, we can search for a username in all tenants
+                var users = _userManager.Users.Where(u => u.UserName == "sampleuser").ToList();
+    
+                //Or we can add TenantId filter if we want to search for a specific tenant
+                var user = _userManager.Users.FirstOrDefault(u => u.TenantId == 42 && u.UserName == "sampleuser");
+            }
+        }
+    }
+    ```
 
 ### User Login
 
@@ -3204,6 +3260,269 @@ services.AddMvc();
     ```
 
     
+
+### Multi-Tenancy
+
+- Tenancy類似組織的概念，ABP有支援在一個服務中包含多組織。
+
+  - ##### Single Deployment - Multiple Database
+
+    - ABP可以透過 **tenant**  資料表內定義的 `ConnectionString` 取得各組織對應的資料庫
+
+  - ##### Single Deployment - Single Database
+
+    - 在各資料表內透過**TenantId** 過濾資料
+
+#### Tenant Entity
+
+- 在**AbpTenant** 有定義一些基本的屬性
+
+  - **TenancyName** : 類似組織代碼，必須是唯一值。且通常是不可變更
+  - **Name**: 組織名稱
+  - **IsActive**: 啟用狀態
+
+- 其他自訂欄位可透過繼承**AbpTenant** 來新增
+
+  ```C#
+  [Table("Tenant")]
+  public class Tenant : AbpTenant<User>
+  {
+      public virtual string CustomerColumn { get; set;}
+      
+      public Tenant()
+      {            
+      }
+  
+      public Tenant(string tenancyName, string name)
+          : base(tenancyName, name)
+      {
+      }
+  }
+  ```
+
+#### Tenant Manager
+
+- ABP預設**AbpTenantManager** 來管理Tenant
+
+- 開放繼承來修改裡面的Funtion
+
+  ```C#
+  public class TenantManager : AbpTenantManager<Tenant, Role, User>
+  {
+      public TenantManager(IRepository<Tenant> tenantRepository)
+          : base(tenantRepository)
+      {
+  
+      }
+  }
+  ```
+
+####   IMustHaveTenant Interface
+
+- 在實體內加入 `IMustHaveTenant`，ABP就會自動將這張資料表視為需要切分組織的資料表
+
+```C#
+public class Product : Entity, IMustHaveTenant
+{
+    public int TenantId { get; set; }
+
+    public string Name { get; set; }
+
+    //...other properties
+}
+```
+
+####   IMayHaveTenant interface
+
+- A **null** value means this is a **host** entity, a **non-null** value means this entity is owned by a **tenant** where the Id is the **TenantId**.
+
+```C#
+public class Role : Entity, IMayHaveTenant
+{
+    public int? TenantId { get; set; }
+
+    public string RoleName { get; set; }
+
+    //...other properties
+}
+```
+
+####   Enabling Multi-Tenancy
+
+- `Configuration.MultiTenancy.IsEnabled = true; `
+
+####   Ignore Feature Check For Host Users
+
+- `Configuration.MultiTenancy.IgnoreFeatureCheckForHostUsers = true; `
+
+### Session
+
+- ABP提供 **IAbpSession**  來取得目前登入者的資訊
+
+- Tenant會在使用者登入的時候，使用者需決定這次的Session對應的tenant
+
+- Application Layer已經將**AbpSession** 進行DI，因此可直接使用
+
+  ```C#
+  public class MyClass : ITransientDependency
+  {
+      public IAbpSession AbpSession { get; set; }
+  
+      public MyClass()
+      {
+          AbpSession = NullAbpSession.Instance;
+      }
+  
+      public void MyMethod()
+      {
+          var currentUserId = AbpSession.UserId;
+          //...
+      }
+  }
+  ```
+
+  
+
+### Permissions
+
+- 針對角色設定的權限，只要屬於此角色的使用者都會繼承該權限
+
+- ABP針對權限的設定可分為兩種
+
+  - 針對整個Service
+  - 針對CRUD各別行為
+
+- 權限管理流程
+
+  1. 建立權限對應列表，避免使用*Magic String*
+
+     ```C#
+     public static class PermissionNames
+     {
+         public const string Pages_Tenants = "Pages.Tenants";
+     
+         public const string Pages_Users = "Pages.Users";
+     
+         public const string Pages_Roles = "Pages.Roles";
+     
+         public const string MyTaskCreationPermission = "MyTaskCreationPermission";
+     }
+     ```
+
+  2. 建立繼承**AuthorizationProvider**  的類別來定義權限內容
+
+     ```C#
+     public class ABP_SidePorjectAuthorizationProvider : AuthorizationProvider
+     {
+         public override void SetPermissions(IPermissionDefinitionContext context)
+         {
+             context.CreatePermission(PermissionNames.MyTaskCreationPermission, L("Create TTTTT"));
+             context.CreatePermission(PermissionNames.Pages_Users, L("Users"));
+             context.CreatePermission(PermissionNames.Pages_Roles, L("Roles"));
+             context.CreatePermission(PermissionNames.Pages_Tenants, L("Tenants"), multiTenancySides: MultiTenancySides.Host);
+         }
+     
+         private static ILocalizableString L(string name)
+         {
+             return new LocalizableString(name, ABP_SidePorjectConsts.LocalizationSourceName);
+         }
+     }
+     ```
+
+     - **IPermissionDefinitionContext**  has methods to get and create permissions
+       - **Name**: 第一個參數，權限代碼不可重複。
+       - **Display name**: 會影響到之後前端顯示的名稱
+       - **Description**: 影響後續前端顯示對該權限的定義
+       - **MultiTenancySides**: 定義該權限只有 **Host** 或是 tenant使用
+
+  3. 權限是針對 **Module**定義的，因此要在 `PreInitialize` 注入
+
+     ```C#
+     // ~.Application/PreInitialize()
+     
+     Configuration.Authorization.Providers.Add<ABP_SidePorjectAuthorizationProvider>();
+     ```
+
+  4. 在 **AppService** 使用
+
+     ```C#
+     //定義進入這個Service至少需要.Pages_Roles權限
+     [AbpAuthorize(PermissionNames.Pages_Roles)] 
+         public class RoleAppService : AsyncCrudAppService<Role, RoleDto, int, PagedRoleResultRequestDto, CreateRoleDto, RoleDto>, IRoleAppService
+     {
+     	public RoleAppService()
+             : base(repository)
+         {
+             //定義要使用Create的方法必須要有.MyTaskCreationPermission才行
+             CreatePermissionName = PermissionNames.MyTaskCreationPermission;
+         }
+             
+         //沒有.MyTaskCreationPermission的權限會在這邊被擋掉
+         [AbpAuthorize(PermissionNames.MyTaskCreationPermission)]
+     	public override async Task<RoleDto> CreateAsync(CreateRoleDto input)
+         {
+             try
+             {
+                 
+                 //....
+             }
+             catch (Exception ex) {
+                 throw ex;
+             }
+         }
+     
+     }
+     ```
+
+  5. 如果只加入 **AbpAuthorize **，則只會確認使用者有沒有登入而不會管各別權限
+
+     ```C#
+     //AbpAllowAnonymous 將不進行驗證
+     [AbpAuthorize]
+     public void SomeMethod(SomeMethodInput input)
+     {
+         //A user can not execute this method if he did not login.
+     }
+     ```
+
+  6. 更細部的function權限可使用**IPermissionChecker** 管理
+
+     ```C#
+     public void CreateUser(CreateOrUpdateUserInput input)
+     {
+         if (!PermissionChecker.IsGranted("Administration.UserManagement.CreateUser"))
+         {
+             throw new AbpAuthorizationException("You are not authorized to create user!");
+         }
+     
+         //A user can not reach this point if he is not granted for "Administration.UserManagement.CreateUser" permission.
+     }
+     ```
+
+  7. 或直接使用.**Authorize** 
+
+     ```C#
+     public void CreateUser(CreateOrUpdateUserInput input)
+     {
+         PermissionChecker.Authorize("Administration.UserManagement.CreateUser");
+     
+         //A user can not reach this point if he is not granted for "Administration.UserManagement.CreateUser" permission.
+     }
+     ```
+
+### ABP預設多組織流程
+
+1. 第一次啟動Service會預設建置**admin** 帳號做為 **Host**，及建立Default tenant。
+   - 若為單一組織服務，則可將人加入default的tenant即可
+2. admin使用Host權限登入(不輸入tenant資料)，新增組織(tenant)。
+   - 新增成功後，ABP會自動在AbpUsers內新增user及tenant的對應表
+   - 新增成功後，ABP會自動在role內產生該tenant的admin腳色
+3. 建立組織使用者，並給予admin最高權限腳色
+   - 使用者可以包含多個腳色，並取得所有繼承腳色的集合權限
+4. 登出使用者，並切換帳號後確認該腳色權限
+5. 進行後續組織維護
+
+![Untitled Diagram](C:\Users\6591\Downloads\Untitled Diagram.jpg)
 
 
 
