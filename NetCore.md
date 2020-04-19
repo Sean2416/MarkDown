@@ -1,4 +1,4 @@
-# **Description**:Expression<TDelegate> 
+# **Description**: Expression<TDelegate> 
 
 - 將強類型 Lambda 運算式表示為運算式樹狀結構形式的資料結構。
 
@@ -3525,6 +3525,55 @@ public class Role : Entity, IMayHaveTenant
 ![Untitled Diagram](C:\Users\6591\Downloads\Untitled Diagram.jpg)
 
 
+
+## Entity Framework Core
+
+- 隱藏Entity欄位，不建立在資料庫中
+
+  ```C#
+   modelBuilder.Entity<Cusotmer>().HasIndex(r=>r.Name).HasName("Index_Name").IsUnique();
+   modelBuilder.Entity<RolePermission>().HasIndex(r => new { r.TenantId, r.RoleCode }).HasName("Index_Code").IsUnique();
+  ```
+
+- 建立資料庫Key、索引
+
+  - 在**OnModelCreating**地方加入
+
+  ```C#
+   modelBuilder.Entity<User>().Ignore(a => a.Name);
+   modelBuilder.Entity<User>().Ignore(a => a.Surname);
+  ```
+
+  - 此外，如果是繼承來的欄位要隱藏時，如果原先的欄位為必填則需將之改為 **private**處理。
+
+  ```C#
+  [Table("User")]
+  public class User : AbpUser<User>
+  {
+      private new string Name { get; set; }
+  
+      private new string Surname { get; set; }
+  
+  }
+  
+  /*
+   這兩個欄位在AbpUser中都是必填欄位，改成private後就不會再對它們進行驗證
+    //
+          // 摘要:
+          //     Surname of the user.
+          [Required]
+          [StringLength(64)]
+          public virtual string Surname { get; set; }
+          //
+          // 摘要:
+          //     Name of the user.
+          [Required]
+          [StringLength(64)]
+          public virtual string Name { get; set; }
+  */
+  ```
+
+  
 
 
 
