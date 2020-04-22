@@ -500,6 +500,26 @@ services.AddSwaggerGen(c =>
 
 
 
+## Add Token
+
+```
+services.AddSwaggerGen(options =>
+{
+  ...
+      // Define the BearerAuth scheme that's in use
+      options.AddSecurityDefinition("bearerAuth", new OpenApiSecurityScheme()
+      {
+      Description = "JWT Authorization header using the Bearer scheme. 
+      Example: \"Authorization: Bearer {token}\"",
+      Name = "Authorization",
+      In = ParameterLocation.Header,
+      Type = SecuritySchemeType.ApiKey
+      });
+});
+```
+
+
+
 ## XML 註解
 
 1. 打開 `*.csproj`，在 `<Project />` 區塊中插入以下程式碼：
