@@ -1046,6 +1046,140 @@ public class Member
 
 
 
+# Microsoft.AspNetCore.Identity
+
+![1589101554152](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1589101554152.png)
+
+## BasicUser<TUser> 
+
+- 定義後續Identity所需的TUser的基底類別
+
+- 可僅定義基本屬性，後續繼承的類別再增加即可
+
+  ```C#
+  public class BasicUser<TUser> : Entity<long>
+  {
+  
+      /// <summary>
+      /// 用户名
+      /// </summary>
+      public virtual string UserName { get; set; }
+  
+      /// <summary>
+      /// 邮箱地址
+      /// </summary>
+      public virtual string EmailAddress { get; set; }
+  
+      /// <summary>
+      /// 密码
+      /// </summary>
+      public virtual string Password { get; set; }
+          
+  }
+  ```
+
+- 後續再方法中可定義傳入的User必須為上述基底類別或其衍生類別
+
+  ```C#
+   public class BasicLogInManager<TUser> : IDomainService, ITransientDependency
+          where TUser : BasicUser<TUser>
+  ```
+
+  
+
+## UserManager<TUser>
+
+- 包含針對使用者CRUD的相關處理函式，並可繼承修改
+- 應只包含邏輯，而不直接進行資料庫的處理
+- 關聯: IUserStore<TUser>
+
+
+
+##  IUserStore<TUser>
+
+- 針對使用者資料進行處理而不包含商業邏輯的介面，內部負責實作與資料庫的CRUD。
+
+- 繼承後可實作針對資料處理的相關功能，沒有硬性規定資料處理的方式
+
+  - 如，不一定需要IRepository、或甚至不一定要進入資料庫
+
+- 繼承後實作針對User資料的處理功能
+
+- **UserManager** 內部針對使用者的CRUD都會用到
+
+- 有資料庫的UserStore
+
+  ```C#
+  public class BasicUserStore<TUser> :
+      IUserStore<TUser>,
+      IUserPasswordStore<TUser>,
+      ITransientDependency
+      where TUser : BasicUser<TUser>
+  {
+      public BasicUserStore(
+          IUnitOfWorkManager unitOfWorkManager,
+          IRepository<TUser, long> userRepository
+          )
+      {
+          _unitOfWorkManager = unitOfWorkManager;
+          UserRepository = userRepository;
+      }
+  }
+  ```
+
+  
+
+- 沒有資料庫連結
+
+  ```C#
+  public class SOCUserStore :
+      IUserStore<User>,
+      ITransientDependency
+  {
+      public Task<User> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken = default)
+      {
+          //加入呼叫SOC dll Function邏輯
+          if (1 == 1)
+              return Task.FromResult(new User
+              {
+                  UserName = "SeanChu",
+                  EmailAddress = "SeanChu@hotmail.com",
+                  Password = "3345678",
+                  Id = 1
+              });
+  
+          throw new NotImplementedException();
+      }
+  }
+  ```
+
+  
+
+## UserClaimsPrincipalFactory<TUser>
+
+- 內涵基本的產生User Claims方法
+
+
+
+## IdentityRegistrar
+
+- 將Identity使用到的相關方法進行注入
+
+  ```C#
+  public static IdentityBuilder Register(IServiceCollection services)
+  {
+      services.AddLogging();
+  
+      return services.AddIdentityCore<User>()
+          .AddUserManager<UserManager>()
+          .AddUserStore<SOCUserStore>()
+          .AddClaimsPrincipalFactory<ClaimsPrincipalFactory>()
+          .AddDefaultTokenProviders();
+  }
+  ```
+
+
+
 # ASP.Net Boilerplate
 
 ## Domain Layer
