@@ -1180,6 +1180,50 @@ public class Member
 
 
 
+## Extract User Info From Token
+
+1. 透過**HttpContext **取得 `ClaimsPrincipal`
+
+   ```C#
+   [AbpAuthorize]
+   public async Task<UserDto> GetCurrentUserInfoAsync()
+   {
+       try
+       {
+           //在ABP的 Application Layer中需要痛過 IHttpContextAccessor取得
+           //_httpContextAccessor.HttpContext.User
+           var user = await _userManager.GetUserAsync(HttpContext.User);
+   
+           return _objectMapper.Map<UserDto>(user);
+       }
+       catch (Exception ex)
+       {
+           throw new Exception(ex.Message);
+       }
+   }
+   ```
+
+2. 透過UserManager 實作 Principal提取
+
+   - Principal內部包含`Identity`、`Claims` 可取得資訊
+
+     ```C#
+     public override string GetUserName(ClaimsPrincipal principal)
+     {
+         IEnumerable<Claim> claim = principal.Claims;
+     
+         var usernameClaim = claim
+             .Where(x => x.Type == ClaimTypes.Name)
+             .FirstOrDefault();
+     
+         return usernameClaim.Value;
+     }
+     ```
+
+     
+
+
+
 # ASP.Net Boilerplate
 
 ## Domain Layer
@@ -3738,12 +3782,24 @@ public class Role : Entity, IMayHaveTenant
 # 參考資料
 
 1. [Swashbuckle.AspNetCore.Filters](https://github.com/mattfrear/Swashbuckle.AspNetCore.Filters)
+
 2. [ Swagger 編寫文件的技巧和 Client Code Gen](https://dotblogs.com.tw/yc421206/2019/01/23/tips_write_write_web_api_document_via_swagger)
+
 3. [ASP.Net Boilerplate](https://aspnetboilerplate.com/)
+
 4. [ABP (ASP.NET Boilerplate) 應用程式開發框架新手教學](https://dotblogs.com.tw/jakeuj/2016/07/27/abp3)
+
 5. [Volo.ABP](https://docs.abp.io/en/abp/latest/Getting-Started-AspNetCore-MVC-Template)
+
 6. [Multiple DB Setting](https://stackoverflow.com/questions/49243891/how-to-use-multiples-databases-in-abp-core-zero)
+
 7. [在 ASP.NET Core WebAPI 中使用 JWT 驗證](https://poychang.github.io/authenticating-jwt-tokens-in-asp-net-core-webapi/)
+
 8. [JWT JSON Web Token 使用 ASP.NET Core 2.0 Web API 的逐步練習教學與各種情境測試](https://csharpkh.blogspot.com/2018/04/jwt-json-web-token-aspnet-core.html)
+
 9. [[如何在 ASP.NET Core 3 使用 Token-based 身分驗證與授權 (JWT)](https://blog.miniasp.com/post/2019/12/16/How-to-use-JWT-token-based-auth-in-aspnet-core-31)
+
+10. [Abp User Entity Design]: https://github.com/aspnetboilerplate/aspnetboilerplate/issues/3033
+
+    
 
