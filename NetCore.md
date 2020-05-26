@@ -2973,7 +2973,45 @@ services.AddMvc();
 ### Swagger Ui
 
 1. Install the `Swashbuckle.AspNetCore` NuGet package to your **Web** project.
+
 2. 在 `startup.cs` 新增相關Swagger設定，可參考上面Swagger章節
+
+   1. Debug及Release都需要設定
+
+3. 在Application中使用XML 
+
+   1. 調整Application Layer屬性中的輸出
+
+      ![img](https://img-blog.csdnimg.cn/20190802112350427.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dhcjNpc215bG92ZQ==,size_16,color_FFFFFF,t_70)
+
+   2. StartUp變更
+
+      ```C#
+      services.AddSwaggerGen(c =>
+      {
+          c.SwaggerDoc("v1", new OpenApiInfo
+          {
+              Version = "v1",
+              Title = "ToDo API",
+              Description = "A simple example ASP.NET Core Web API"
+          });
+      
+          c.DocInclusionPredicate((docName, description) => true);
+      
+          //將application 層的註解加入Swagger
+          var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+      	
+          //指向application的輸出文件名稱
+          var CommentsFileName = @"SOC_APIService.Application.xml";
+          var CommentsFile = Path.Combine(baseDirectory, CommentsFileName);
+          //将注释的Xml文档添加到swaggerUi中
+          c.IncludeXmlComments(CommentsFile);
+      });
+      ```
+
+   3. 其餘同上
+
+   4. 參考: https://blog.csdn.net/war3ismylove/article/details/98182680?utm_medium=distribute.pc_relevant.none-task-blog-baidujs-1
 
 
 
