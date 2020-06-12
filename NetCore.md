@@ -3809,7 +3809,63 @@ public class Role : Entity, IMayHaveTenant
   */
   ```
 
-  
+
+- 加入Schema 
+
+  - 在 **~DbContext** 加入
+
+  ```C#
+  protected override void OnModelCreating(ModelBuilder modelBuilder)
+  {
+  	//搜尋的結果會變為 Select * FROM sche_bpms.XX
+      modelBuilder.HasDefaultSchema("sche_bpms");
+      base.OnModelCreating(modelBuilder);
+  }
+  ```
+
+- SQL View查詢
+
+  1. 建立 View **Class**
+
+     ```C#
+     [Table("vw_UserRole")]
+     public class VUserRole : Entity
+     {
+         [Column("User_SN")]
+         public override int Id { get; set; }
+     
+         [Column("User_ID")]
+         public string UserName { get; set; }
+     
+         [Column("User_Name")]
+         public string Name { get; set; }
+     }
+     ```
+
+  2. 建立 **Mapping**
+
+     ```C#
+     public class VUserRoleMap : IEntityTypeConfiguration<VUserRole>
+     {
+         public void Configure(EntityTypeBuilder<VUserRole> builder)
+         {
+             builder.ToTable("vw_UserRole");
+        }
+     }
+     ```
+
+  3. ~DBContext處理
+
+     ```C#
+     protected override void OnModelCreating(ModelBuilder modelBuilder)
+     {
+         modelBuilder.Ignore<VUserRole>();
+         modelBuilder.ApplyConfiguration(new VUserRoleMap());
+         base.OnModelCreating(modelBuilder);
+     }
+     ```
+
+     
 
 
 
