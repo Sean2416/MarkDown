@@ -3865,7 +3865,33 @@ public class Role : Entity, IMayHaveTenant
      }
      ```
 
-     
+  4. 若View沒有 **primary key**
+
+     1. 隱藏 ID 欄位
+
+        ```C#
+        [NotMapped]
+        public override int Id
+        {
+            get { return 0; }
+            set { /* nothing */ }
+        }
+        ```
+
+     2. 建立其他鍵值
+
+        ```C#
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Ignore<VUserRole>();
+            modelBuilder.ApplyConfiguration(new VUserRoleMap());
+            
+            modelBuilder.Entity<VUserRole>().HasKey(r=>new { r.RoleSN , r.UserSN});
+            base.OnModelCreating(modelBuilder);
+        }
+        ```
+
+        
 
 
 
