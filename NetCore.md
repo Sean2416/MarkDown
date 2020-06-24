@@ -1,4 +1,6 @@
-# **Description**: Expression<TDelegate> 
+
+
+# Expression<TDelegate> 
 
 - 將強類型 Lambda 運算式表示為運算式樹狀結構形式的資料結構。
 
@@ -2463,14 +2465,18 @@ public class ActivityWriter :
         public List<UserDto> People { get; set; }
     }
     
+    [AutoMapTo(new [] { typeof(User) , typeof(Role) })]
     public class CreateUserInput : UserDto
     {
         public string Password { get; set; }
     }
     ```
-
-  - `IObjectMapper` 可協助我們將　`List<User>` 轉換成`List<UserDto>`
-
+  ```
+  
+  ```
+  
+- `IObjectMapper` 可協助我們將　`List<User>` 轉換成`List<UserDto>`
+  
   ```C#
   public class UserAppService :  IUserAppService
   {
@@ -2847,8 +2853,7 @@ public class SimpleMailTaskCoreModule : AbpModule
    ```C#
   
   4. 在 `~Module` 或 其他接口 Inject **IQuartzScheduleJobManager** 註冊排程
-  
-     ```C#
+      
      public override void PostInitialize()
      {
          var jobManager = IocManager.Resolve<IQuartzScheduleJobManager>();
@@ -2873,6 +2878,96 @@ public class SimpleMailTaskCoreModule : AbpModule
          });
      }
    ```
+
+- ### trigger 任務觸發器
+
+  - 用於定義使用何種方式出發任務(job)，同一個job可以定義多個trigger ，多個trigger 各自獨立的執行排程，每個trigger 中必須且只能定義一種觸發器型別(calendar-interval、simple、cron)
+
+  - **WithSimpleSchedule**
+
+    - 簡易型的任務觸發器
+
+    - start-time 任務開始執行時間
+
+    - repeat-count 任務執行次數
+
+    - repeat-interval 任務觸發間隔
+
+    - ```C#
+       trigger                 
+       .StartAt(DateTime.Now)
+       .WithSimpleSchedule(schedule =>
+       {
+           schedule.RepeatForever()
+           .WithIntervalInHours(24)
+           .Build();
+       });
+      ```
+
+  - **WithCronSchedule**
+
+    - 參考: https://www.itread01.com/content/1549747264.html
+
+    - 定時任務 
+
+    - 表示式按照順序分別為秒，分，時，日，月，周，年
+
+    - 表示式 - 7段構成：秒 分 時 日 月 星期 年
+
+      - "-" ：表示範圍 MON-WED表示星期一到星期三
+      - "," ：表示列舉 MON,WEB表示星期一和星期三
+      - "*" ：表是“每”，每月，每天，每週，每年等
+      - "/" :表示增量：0/15（處於分鐘段裡面） 每15分鐘，在0分以後開始，3/20 每20分鐘，從3分鐘以後開始
+      - "?" :只能出現在日，星期段裡面，表示不指定具體的值
+      - "L" :只能出現在日，星期段裡面，是Last的縮寫，一個月的最後一天，一個星期的最後一天（星期六）
+      - "W" :表示工作日，距離給定值最近的工作日
+      - "#" :表示一個月的第幾個星期幾，例如："6#3"表示每個月的第三個星期五（1=SUN...6=FRI,7=SAT）
+
+    - 範例
+
+      - | **Expression**           | **Meaning**                                                  |
+        | ------------------------ | ------------------------------------------------------------ |
+        | 0 0 12 * * ?             | 每天中午12點觸發                                             |
+        | 0 15 10 ? * *            | 每天上午10:15觸發                                            |
+        | 0 15 10 * * ?            | 每天上午10:15觸發                                            |
+        | 0 15 10 * * ? *          | 每天上午10:15觸發                                            |
+        | 0 15 10 * * ? 2005       | 2005年的每天上午10:15觸發                                    |
+        | 0 * 14 * * ?             | 在每天下午2點到下午2:59期間的每1分鐘觸發                     |
+        | 0 0/5 14 * * ?           | 在每天下午2點到下午2:55期間的每5分鐘觸發                     |
+        | 0 0/5 14,18 * * ?        | 在每天下午2點到2:55期間和下午6點到6:55期間的每5分鐘觸發      |
+        | 0 0-5 14 * * ?           | 在每天下午2點到下午2:05期間的每1分鐘觸發                     |
+        | 0 10,44 14 ? 3 WED       | 每年三月的星期三的下午2:10和2:44觸發                         |
+        | 0 15 10 ? * MON-FRI      | 週一至週五的上午10:15觸發                                    |
+        | 0 15 10 15 * ?           | 每月15日上午10:15觸發                                        |
+        | 0 15 10 L * ?            | 每月最後一日的上午10:15觸發                                  |
+        | 0 15 10 L-2 * ?          | Fire at 10:15am on the 2nd-to-last last day of every month   |
+        | 0 15 10 ? * 6L           | 每月的最後一個星期五上午10:15觸發                            |
+        | 0 15 10 ? * 6L           | Fire at 10:15am on the last Friday of every month            |
+        | 0 15 10 ? * 6L 2002-2005 | 2002年至2005年的每月的最後一個星期五上午10:15觸發            |
+        | 0 15 10 ? * 6#3          | 每月的第三個星期五上午10:15觸發                              |
+        | 0 0 12 1/5 * ?           | Fire at 12pm (noon) every 5 days every month, starting on the first day of the month. |
+        | 0 11 11 11 11 ?          | Fire every November 11th at 11:11am.                         |
+        | 0/5 * * * * ?            | 每隔5秒執行                                                  |
+        | 0 0/1 * * * ?            | 每隔一分鐘從0開始                                            |
+        | 0 3/20 * * * ?           | 小時中從第3分鐘開始，每隔20分鐘執行                          |
+        | 0 15 10 ? * MON-FRI      | 在星期一到星期五的每天上午10點15分執行                       |
+        | 0 15 10 ? * 6L 2007-2010 | 在2007年到2010年的每個月的最後一個星期五上午10點15分執行     |
+
+        
+
+    - ```C#
+      trigger =>
+      {
+          trigger
+              .WithCronSchedule($"0 30 9,15 * * ?")
+              .WithIdentity("MonthlyReportTrigger")
+              .StartNow();
+      });
+      ```
+
+      
+
+
 
 
 
@@ -3927,9 +4022,11 @@ public class Role : Entity, IMayHaveTenant
 
 8. [JWT JSON Web Token 使用 ASP.NET Core 2.0 Web API 的逐步練習教學與各種情境測試](https://csharpkh.blogspot.com/2018/04/jwt-json-web-token-aspnet-core.html)
 
-9. [[如何在 ASP.NET Core 3 使用 Token-based 身分驗證與授權 (JWT)](https://blog.miniasp.com/post/2019/12/16/How-to-use-JWT-token-based-auth-in-aspnet-core-31)
+9. [如何在 ASP.NET Core 3 使用 Token-based 身分驗證與授權 (JWT)](https://blog.miniasp.com/post/2019/12/16/How-to-use-JWT-token-based-auth-in-aspnet-core-31)
 
-10. [Abp User Entity Design]: https://github.com/aspnetboilerplate/aspnetboilerplate/issues/3033
+10. [Abp User Entity Design](https://github.com/aspnetboilerplate/aspnetboilerplate/issues/3033 )
+
+11. [C#使用Quartz.NET中Cron表示式](https://www.itread01.com/content/1549747264.html)
 
     
 
