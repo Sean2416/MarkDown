@@ -3998,9 +3998,38 @@ public class Role : Entity, IMayHaveTenant
 
    2. [SDK、RunTime]: https://dotnet.microsoft.com/download
 
-      
 
+### Keeping the app to run continuously on IIS
 
+- 由於IIS會自動回收期限內沒有使用的**application pool**。因此長時間的排程(Quatz)會被自動關閉。
+
+  ![image-20200629162856867](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20200629162856867.png)
+
+  
+
+- 因此，必須調整IIS的設定
+
+  1. ###### **Install the Application Initialization Module**
+
+     ![Install IIS application initialization module](https://i0.wp.com/www.taithienbo.com/wp-content/uploads/screenshots/IIS_Application_Initialization/Screen-Shot-2018-10-06-at-3.07.30-PM-1.png?ssl=1)
+
+     
+
+  2. **設定應用程式集區**
+
+     - Idle time-out(閒置愈時): 0代表永遠不會處於閒置狀態，因此不會被回收
+
+     - start mode to “Always Running” tells IIS to start a worker process for your application right away, without waiting for the initial request.
+
+       
+
+     ![img](https://i0.wp.com/www.taithienbo.com/wp-content/uploads/2018/10/IIS_AppPool_Settings_AlwaysRunning.png?ssl=1)
+
+     
+
+  3. **設定IIS網站**
+
+     ![Install IIS application initialization module](https://i2.wp.com/www.taithienbo.com/wp-content/uploads/screenshots/IIS_Application_Initialization/Screen-Shot-2018-10-06-at-4.22.39-PM-2.png?ssl=1)
 
 
 
@@ -4027,6 +4056,8 @@ public class Role : Entity, IMayHaveTenant
 10. [Abp User Entity Design](https://github.com/aspnetboilerplate/aspnetboilerplate/issues/3033 )
 
 11. [C#使用Quartz.NET中Cron表示式](https://www.itread01.com/content/1549747264.html)
+
+12. [How to auto start and keep an ASP.NET core web application running on IIS](https://www.taithienbo.com/how-to-auto-start-and-keep-an-asp-net-core-web-application-and-keep-it-running-on-iis/)
 
     
 
