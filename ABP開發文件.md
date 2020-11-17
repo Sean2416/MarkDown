@@ -76,15 +76,137 @@
 2. Application Service內應不包含
 
    1. Domain Logic
+
    2. 資料庫實體Entity，需以DTO作為 *request*、 *response* 傳遞類別。並以Object Mapping與Domain Layer進行溝通 ( **細部內容可參考 Application Layer- Object To Object Mapping**)
+
+       
+
+------
+
+# Microsoft.AspNetCore.Identity
+
+## User
+
+1. 定義Identity所需的TUser的基底類別
+
+2. 定義驗證使用者資訊所需之基本屬性，後續透過擴充方式進行調整
+
+   ```C#
+   public class BasicUser<TUser> : Entity<long>
+   {
+       public virtual string Account { get; set; }
+       public virtual string Password { get; set; }
+           
+   }
+   ```
+
+3. 後續Identity內有使用User的類別皆需繼承至 `TUser`
+
+   ```C#
+    public class BasicLogInManager<TUser> : IDomainService, ITransientDependency
+           where TUser : BasicUser<TUser>
+   ```
+
+
+
+##  UserStore
+
+- 負責實作與資料庫的CRUD。
+
+- 需繼承.Net Identity<TUser>
+
+- 繼承後可實作針對資料處理的相關功能，沒有硬性規定資料處理的方式
+
+  - 如，不一定需要IRepository、或甚至不一定要進入資料庫
+
+- 有資料庫的UserStore
+
+  ```C#
+  public class BasicUserStore<TUser> :
+      IUserStore<TUser>,
+      IUserPasswordStore<TUser>,
+      ITransientDependency
+      where TUser : BasicUser<TUser> //定義User的類別都必須繼承BasicUser<TUser>
+  {
+      public BasicUserStore(
+          IUnitOfWorkManager unitOfWorkManager,
+          IRepository<TUser, long> userRepository
+          )
+      {
+          _unitOfWorkManager = unitOfWorkManager;
+          UserRepository = userRepository;
+      }
+  }
+  ```
+
+  
+
+- 沒有資料庫連結
+
+  ```C#
+  public class SOCUserStore :
+      IUserStore<User>,
+      ITransientDependency
+  {
+      public Task<User> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken = default)
+      {
+          //加入呼叫SOC dll Function邏輯
+          if (1 == 1)
+              return Task.FromResult(new User
+              {
+                  UserName = "SeanChu",
+                  EmailAddress = "SeanChu@hotmail.com",
+                  Password = "3345678",
+                  Id = 1
+              });
+  
+          throw new NotImplementedException();
+      }
+  }
+  ```
+
+  
+
+## UserManager
+
+- 繼承 **Identity** 的 UserManager<TUser>
+- 包含使用者驗證、或資料處理的相關方法類別
+- 不直接操作資料庫
+- 關聯類別: IUserStore<TUser>
+
+
+
+## UserClaimsPrincipalFactory
+
+- 繼承UserClaimsPrincipalFactory<TUser>
+- 將使用者資訊封裝至Claim中
+
+
+
+# IdentityRegistrar
+
+- 將Identity相關的類別注入
+
+- 位置: `~.Web` StartUp中
+
+  ```C#
+  public static IdentityBuilder Register(IServiceCollection services)
+  {
+      services.AddLogging();
+  
+      return services.AddIdentityCore<User>()
+          .AddUserManager<UserManager>()
+          .AddUserStore<SOCUserStore>()
+          .AddClaimsPrincipalFactory<ClaimsPrincipalFactory>()
+          .AddDefaultTokenProviders();
+  }
+  ```
 
 
 
 
 
 ------
-
-
 
 # Swagger Ui
 
