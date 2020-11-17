@@ -1,0 +1,514 @@
+# 資料庫處理
+
+1. ## 新增Entity
+
+   1. 於 `~.Core` 專案內建立資料庫實體類別
+   2. ABP 內的所有實體都需要繼承 `Entity` 類別 ( **細部內容可參考Domain Layer- Entity說明**)
+
+2. ## 建立資料庫關聯
+
+   1. 於`~.EntityFrameworkCore `得 `~DbContext`中建立資料庫關聯
+
+      - 每一個`~DbContext` 對應到各自的DB連線資訊 ( **細部內容可參考Multi DataBase說明**)
+
+      ![image-20201117104629942](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201117104629942.png)
+
+3. ## 資料庫還原
+
+   1. 將 `~.EntityFrameworkCore` 指定為啟動專案
+
+   2. 開啟套件管理器主控台輸入下列指令
+
+      1. ```powershell
+         add-migration create_user //建立資料庫錨點
+         ```
+
+      2. ```powershell
+         update-database //更新資料庫
+         ```
+
+         ![image-20201117103903556](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201117103903556.png)
+
+   
+
+4. ## 資料庫CRUD處理
+
+   1.  依據ABP 及 共用開發原則，所有的Entity在進行實際資料庫的處理皆因放置在 `~Store`類別中
+
+   2. ABP中可使用  **IRepository<TEntity>  OR  IRepository<TEntity, TPrimaryKey>** 進行資料庫操作行為 ( **細部內容可參考Domain Layer- Repositories 說明**)
+
+      ```C#
+      public class UserStore : ITransientDependency
+      {
+          public IRepository<User> _Repo { get; }
+          
+          public UserStore(
+              IRepository<User> repo)
+          {
+              _Repo = repo;
+          }
+      
+          public async Task<List<User>> GetUser()
+          {
+              return await _Repo.GetAllListAsync();
+          }
+      }
+      ```
+
+   3. `~Store`類別中因只包含單純的資料庫操作，而不包含商業邏輯處理。相關的Domain Logic應該放置在`~Manager`類別中
+
+------
+
+
+
+# 建立API
+
+1. 新增 `ApplicationService`
+
+   1. 架構: 依據各API建立資料結構內部需包含
+
+      1. DTO  ( **細部內容可參考 Application Layer- Data Transfer Objects說明**)
+
+      2. Application Service ` ~AppService`   ( **細部內容可參考 Application Layer- Application Service**)
+
+         ![image-20201117114830464](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201117114830464.png)
+
+2. Application Service內應不包含
+
+   1. Domain Logic
+   2. 資料庫實體Entity，需以DTO作為 *request*、 *response* 傳遞類別。並以Object Mapping與Domain Layer進行溝通 ( **細部內容可參考 Application Layer- Object To Object Mapping**)
+
+
+
+
+
+------
+
+
+
+# Swagger Ui
+
+## Basic
+
+1. Install the `Swashbuckle.AspNetCore` NuGet package to your **Web** project.
+
+2. 在 `startup.cs` 新增相關Swagger設定，可參考上面Swagger章節
+
+   1. Debug及Release都需要設定
+
+3. 在Application中使用XML 
+
+   1. 調整Application Layer屬性中的輸出
+
+      ![image-20201117105558634](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201117105558634.png)
+
+4. 將 Swagger 產生器新增至 `Startup.ConfigureServices` 
+
+5. 在 `Startup.Configure` 方法中，啟用中介軟體為產生的 JSON 文件和 Swagger UI 提供服務
+
+   ```c#
+   public void ConfigureServices(IServiceCollection services)
+   {
+       services.AddDbContext<TodoContext>(opt =>
+           opt.UseInMemoryDatabase("TodoList"));
+       services.AddControllers();
+   
+       // Register the Swagger generator, defining 1 or more Swagger documents
+       services.AddSwaggerGen(c =>
+       {
+           c.SwaggerDoc("v1", new OpenApiInfo { Title = "My API", Version = "v1" });
+       });
+   }
+   
+   public void Configure(IApplicationBuilder app)
+   {
+       if (env.IsDevelopment())
+       {
+           app.UseDeveloperExceptionPage();
+           app.UseSwagger();
+           app.UseSwaggerUI(c =>
+           {
+             c.SwaggerEndpoint(
+              url: "/swagger/v1/swagger.json",
+              name: "RESTful API v1.0.0"
+             );
+            });
+       }
+   
+       app.UseRouting();
+       app.UseEndpoints(endpoints =>
+       {
+           endpoints.MapControllers();
+       });
+   }
+   ```
+
+
+## 自訂與擴充
+
+### API 資訊與描述
+
+- 傳遞至 `AddSwaggerGen` 方法的組態動作會新增作者、授權和描述等資訊
+
+```C#
+// Register the Swagger generator, defining 1 or more Swagger documents
+services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Version = "v1",
+        Title = "ToDo API",
+        Description = "A simple example ASP.NET Core Web API",
+        TermsOfService = new Uri("https://example.com/terms"),
+        Contact = new OpenApiContact
+        {
+            Name = "Shayne Boyer",
+            Email = string.Empty,
+            Url = new Uri("https://twitter.com/spboyer"),
+        },
+        License = new OpenApiLicense
+        {
+            Name = "Use under LICX",
+            Url = new Uri("https://example.com/license"),
+        }
+    });
+});
+```
+
+![1583409902625](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1583409902625.png)
+
+
+
+### Add Token
+
+```
+services.AddSwaggerGen(options =>
+{
+  ...
+      // Define the BearerAuth scheme that's in use
+      options.AddSecurityDefinition("bearerAuth", new OpenApiSecurityScheme()
+      {
+      Description = "JWT Authorization header using the Bearer scheme. 
+      Example: \"Authorization: Bearer {token}\"",
+      Name = "Authorization",
+      In = ParameterLocation.Header,
+      Type = SecuritySchemeType.ApiKey
+      });
+});
+```
+
+
+
+### XML 註解
+
+1. 打開 `*.csproj`，在 `<Project />` 區塊中插入以下程式碼：
+
+   ```C#
+   <PropertyGroup>
+     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+     <NoWarn>$(NoWarn);1591</NoWarn>
+   </PropertyGroup>
+   ```
+
+   
+
+2. 調整 `startup.ConfigureServices`
+
+   ```C#
+   public void ConfigureServices(IServiceCollection services)
+   {
+       services.AddDbContext<TodoContext>(opt =>
+           opt.UseInMemoryDatabase("TodoList"));
+       services.AddControllers();
+   
+       // Register the Swagger generator, defining 1 or more Swagger documents
+       services.AddSwaggerGen(c =>
+       {
+           c.SwaggerDoc("v1", new OpenApiInfo
+           {
+               Version = "v1",
+               Title = "ToDo API",
+               Description = "A simple example ASP.NET Core Web API",
+               TermsOfService = new Uri("https://example.com/terms"),
+               Contact = new OpenApiContact
+               {
+                   Name = "Shayne Boyer",
+                   Email = string.Empty,
+                   Url = new Uri("https://twitter.com/spboyer"),
+               },
+               License = new OpenApiLicense
+               {
+                   Name = "Use under LICX",
+                   Url = new Uri("https://example.com/license"),
+               }
+           });
+   
+           // Set the comments path for the Swagger JSON and UI.
+           var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+           var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+           c.IncludeXmlComments(xmlPath);
+       });
+   }
+   ```
+
+### 加入 `<summary>` 文件註解標籤
+
+```C#
+/// <summary>
+/// Deletes a specific TodoItem.
+/// </summary>
+```
+
+![顯示 XML 註解 'Deletes a specific TodoItem.' 的 Swagger UI](https://docs.microsoft.com/zh-tw/aspnet/core/tutorials/web-api-help-pages-using-swagger/_static/triple-slash-comments.png?view=aspnetcore-3.1)
+
+### 加入 `<remarks>`
+
+```C#
+/// <remarks>
+/// Sample request:
+///
+///     POST /Todo
+///     {
+///        "id": 1,
+///        "name": "Item1",
+///        "isComplete": true
+///     }
+///
+/// </remarks>
+```
+
+![顯示額外註解的 Swagger UI](https://docs.microsoft.com/zh-tw/aspnet/core/tutorials/web-api-help-pages-using-swagger/_static/xml-comments-extended.png?view=aspnetcore-3.1)
+
+### 定義回傳格式為 `application/json`
+
+- 將 `[Produces("application/json")]` 屬性新增至 API Controller
+
+```C#
+[Produces("application/json")]
+[Route("api/[controller]")]
+[ApiController]
+public class ControlTypeController : Controller
+{
+}
+```
+
+![含有預設回應內容類型的 Swagger UI](https://docs.microsoft.com/zh-tw/aspnet/core/tutorials/web-api-help-pages-using-swagger/_static/json-response-content-type.png?view=aspnetcore-3.1)
+
+### 描述回傳型別
+
+- 描述回傳狀態碼對應內容
+
+```C#
+/// <summary>
+/// Creates a TodoItem.
+/// </summary>
+/// <param name="item"></param>
+/// <returns>A newly created TodoItem</returns>
+/// <response code="201">Returns the newly created item</response>
+/// <response code="400">If the item is null</response>            
+[HttpPost]
+[ProducesResponseType(typeof(IEnumerable<ControlType>), 200)]
+[ProducesResponseType(typeof(string), 400)]
+public ActionResult<TodoItem> Create(TodoItem item)
+{
+    _context.TodoItems.Add(item);
+    _context.SaveChanges();
+
+    return CreatedAtRoute("GetTodo", new { id = item.Id }, item);
+}
+```
+
+![1583411488210](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1583411488210.png)
+
+### Model定義
+
+- 支援 [Required]、[StringLength]、[Range(1, 100)]
+- 某些 Attribute 需要透過滑鼠事件才會呈現，例如：[StringLength]
+
+```C#
+/// <summary>
+///     會員
+/// </summary>
+public class Member 
+{
+     /// <summary>
+        ///     編碼
+        /// </summary>
+        [Column("id")]
+        public Guid Id { get; set; }
+
+        /// <summary>
+        ///  ControlTypeCode
+        /// </summary>
+        [Column("control_type_code")]
+        [Required]
+        public string ControlTypeCode { get; set; }
+
+        /// <summary>
+        ///     姓名
+        /// </summary>
+        [StringLength(100)]
+        [Column("name")]
+        public string Name { get; set; }
+ 
+}
+```
+
+![1583484527638](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\1583484527638.png)
+
+
+
+### Swashbuckle.AspNetCore.Filters
+
+- #### 建立Request 及 Response Example
+
+1. Install the [NuGet package](https://www.nuget.org/packages/Swashbuckle.AspNetCore.Filters/)
+
+2. In the *ConfigureServices* method of *Startup.cs*, inside your `AddSwaggerGen` call, enable whichever filters you need
+
+   ```C#
+   public void ConfigureServices(IServiceCollection services)
+   {
+    services.AddSwaggerGen(c =>
+    {
+      //[SwaggerRequestExample] & [SwaggerResponseExample]
+      // version < 3.0 like this: c.OperationFilter<ExamplesOperationFilter>(); 
+      // version 3.0 like this: c.AddSwaggerExamples(services.BuildServiceProvider());
+      // version > 4.0 like this:
+      c.ExampleFilters();
+        
+   	//.......
+    });
+    //將參考範例加入介面呈現內容中
+    services.AddSwaggerExamplesFromAssemblyOf<Startup>();
+   }
+   ```
+
+
+
+#### Request examples
+
+1. 實作 `IExamplesProvider<T>`
+
+   ```C#
+   // SwagExample/ControlTypeItemExample
+   
+   public class ControlTypeItemExample : IExamplesProvider<ControlTypeItem>
+       {
+           public ControlTypeItem GetExamples()
+           {
+               return new ControlTypeItem
+               {
+                   ControlTypeCode = "Test1",
+                   Name = "測試明細123",
+                   Status = 1,
+                   SiteCode = "CW01"
+               };
+           }
+       }
+   ```
+
+   
+
+2. use the `SwaggerRequestExample` attribute
+
+   ```C#
+   [SwaggerRequestExample(typeof(ControlTypeItem), typeof(ControlTypeItemExample))]
+   public async Task<IActionResult> Post(ControlTypeItem entity)
+   {
+       try
+       {
+           entity.Id = Guid.NewGuid();
+   
+           var affected = await _db.Query
+           (
+               ueryHelper.GetTableName<ControlTypeItem>())
+               .InsertAsync(QueryHelper.Map(entity)
+            );
+   
+           return Ok(entity);
+       }
+       catch (Exception e)
+       {
+           return BadRequest(e.Message);
+       }
+    }
+   ```
+
+   
+
+3. #### List Request examples
+
+   ```C#
+    public class ControlTypeExample : IExamplesProvider<List<ControlType>>
+       {
+           public List<ControlType> GetExamples()
+           {
+               return new List<ControlType>
+               {
+                   new ControlType { Code = "AA", Name = "Test Country" },
+                   new ControlType { Code = "BB", Name = "And another" }
+               };
+           }
+       }
+   ```
+
+   ```C#
+   [SwaggerRequestExample(typeof(ControlType), typeof(ControlTypeExample), jsonConverter: typeof(StringEnumConverter))]
+   public async Task<IActionResult> Post(List<ControlType> entityList)
+   {
+       try
+       {
+           foreach (var entity in entityList)
+           {
+               entity.Id = Guid.NewGuid();
+   
+               await _db.Query(
+                   QueryHelper.GetTableName<ControlType>()).
+                   InsertAsync(QueryHelper.Map(entity));
+           }
+   
+           return Ok(entityList);
+       }
+       catch (Exception e)
+       {
+           return BadRequest(e.Message);
+       }
+   }
+   ```
+
+   
+
+#### Response examples
+
+```C#
+ [SwaggerResponse(200, "The list of ControlType", typeof(IEnumerable<ControlType>))]
+ [SwaggerResponseExample(200, typeof(ControlTypeExample))]
+ [SwaggerResponse(400, type: typeof(string))]
+ public async Task<IActionResult> Get()
+ {
+     try
+     {
+         var result = await _db.FromQuery(
+             new Query(QueryHelper.GetTableName<ControlType>())
+         ).GetAsync<ControlType>();
+
+         return Ok(result.ToList());
+     }
+     catch (Exception e)
+     {
+         return BadRequest(e.Message);
+     }
+ }
+```
+
+
+
+## 加入Auth
+
+### 新增前端登入畫面
+
+1. 引用前端登入畫面及JS登入功能
+2. 調整 Configure 插入登入元件
+
+![image-20201117110304028](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201117110304028.png)
