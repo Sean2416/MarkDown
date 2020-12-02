@@ -1,3 +1,175 @@
+# ABP Framework
+
+## Application Layer
+
+### 	Application Service
+
+- 命名方式: XXX***AppService***
+
+- **Application Service** 主要是由展現層呼叫，並以 **DTO** 作為 `傳入/傳出` 的參數
+
+- **Application Service** 可以包含一些簡單的商業邏輯，並可以直接操作 Entity 物件以達到 展現層與Domain完全切割
+
+- 雖然 **Application Service** 可以直接操作 Entity實體。但為了提高每一個函式的再用性，在開發上還是希望將業務邏輯及資料處理轉至**Domain Layer**實作。
+
+- #### ApplicationService Interface
+
+  - 在ABP中，所有的**Application Service** 都必須繼承 **IApplicationService / ApplicationService** 。
+
+  - `ApplicationService ` 裡面有提供基底的函示可供使用 ex. `Logger`、`Localized`...etc
+
+  - `ApplicationService ` 內部也可以直接使用 `IRepository<T>` 來呼叫基底層的資料庫處理，但實務上還是希望將資料庫處理的相關函式放置在 `Domain Layer`中。
+
+  - ```C#
+    public class CustomerAppService : ApplicationService //也可以直接繼承 ~AppServiceBase
+    {
+        private readonly IRepository<Customer> _personRepository;
+    
+        public CustomerAppService(IRepository<Customer> personRepository)
+        {
+            _personRepository = personRepository;
+        }
+    
+        public void CreatePerson(CreateCustomerInput input)
+        {
+            var customer = new Customer();
+    
+            ObjectMapper.Map(input, customer);
+    
+            _personRepository.Insert(customer);
+        }
+    }
+    ```
+
+
+
+### 	Data Transfer Objects
+
+- 作為 `Application Layer` 跟 `Presentation Layer` 之間傳遞的參數
+
+- DTO 的功能主要包含
+
+  - 將傳遞參數物件化，讓每一個參數更具意義
+
+  - 可以提高各個參數的重複性及可維護性。(例如，今天同時有多個API會回傳使用者的基本資料欄位時，使用DTO可以讓回傳內容一致且當需要替換回傳欄位時變得更加簡便。)
+
+  - 避免曝光多餘或隱密性的資料給外部使用者 。(例如，今天要取得使用者資訊時，我們可以透過定義DTO來決定回傳的欄位。避免將隱密的資料透漏給外部使用者)
+
+  - Object To Object Mapping
+
+    - 提供 DTO 與 Entity之間的轉換
+
+  - 針對傳入的參數可以做初步的欄位驗證 **(驗證的細節參考 Validating-Data-Transfer-Objects)**
+
+    - ```C#
+      [AutoMapTo(typeof(Customer))]
+      public class CreateCustomerInput
+      {
+          /// <summary>
+          ///  客戶名字
+          /// </summary>
+          [Required]
+          [StringLength(10, MinimumLength = 5)]
+          public string Name { get; set; }
+      
+          /// <summary>
+          ///  客戶電話
+          /// </summary>
+          public string Phone { get; set; }
+      
+          /// <summary>
+          ///  客戶Mail
+          /// </summary>
+          public string Email { get; set; }
+      
+          /// <summary>
+          ///  客戶地址
+          /// </summary>
+          public string Address { get; set; }
+      
+      }
+      ```
+
+      
+
+    - ![image-20201122141457279](C:\Users\sean2\AppData\Roaming\Typora\typora-user-images\image-20201122141457279.png)
+
+  
+
+
+
+------
+
+
+
+
+
+# Appsetting
+
+- 安裝`Microsoft.AspNetCore`
+
+- 在**~CoreModule** 的建構子中載入 `HostingEnvironment`，並取得 `IConfigurationRoot`
+
+  ```C#
+  [DependsOn(typeof(AbpMailKitModule))]
+  public class SimpleMailTaskCoreModule : AbpModule
+  {
+      private readonly IConfigurationRoot _appConfiguration;
+  
+      public SimpleMailTaskCoreModule(IWebHostEnvironment env)
+      {
+          _appConfiguration = AppConfigurations
+              .Get(env.ContentRootPath, env.EnvironmentName);
+      }
+  }
+  ```
+
+- 在`PreInitialize()`中透過DI註冊Config物件
+
+  ```C#
+  public override void PreInitialize()
+  {
+      IocManager.Register<MailServerConfig>();
+      //....
+  }
+  
+  ```
+
+- 在 `Initialize()` 透過 `Configuration.GetSection('Config')` 取得`Appsetting`中的對應物件並Bind至Config 物件
+
+  ```C#
+  public override void Initialize()
+  {    _appConfiguration.GetSection("MailServer")
+      .Bind(Configuration.Get<MailServerConfig>());          
+              
+  }
+  ```
+
+- Service中即可透過 **Inject** 取得
+
+  ```C#
+  public class MailConfiguration : ISmtpEmailSenderConfiguration
+  {     
+      public MailConfiguration(IAbpStartupConfiguration config)
+      {
+          var mailConfig = config.Get<MailServerConfig>();
+  
+          Host = mailConfig.Host;
+          Port = int.Parse(mailConfig.Port);
+          UserName = mailConfig.UserName;
+          Password = mailConfig.Password;
+          Domain = mailConfig.Domain;
+          DefaultFromAddress = mailConfig.DefaultFromAddress;
+          DefaultFromDisplayName = mailConfig.DefaultFromDisplayName;
+          EnableSsl = false;
+          UseDefaultCredentials = false;
+  
+      }
+  }
+  ```
+
+  
+
 # 資料庫處理
 
 1. ## 新增Entity

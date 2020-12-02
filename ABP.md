@@ -3996,6 +3996,33 @@ public class Role : Entity, IMayHaveTenant
 
         
 
+## 環境設定
+
+- 使用 `appsettings.json`控管環境變數
+
+- 建置環境設定檔
+
+  - 建置順序=> 先取 `appsettings` > 再取 `appsettings.XX.json`，有重複的設定則蓋過去
+  - ![image-20201202155434886](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201202155434886.png) 
+  - ![image-20201202154611237](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201202154611237.png)
+
+- 加入引用設定黨
+
+  - ABP預設路徑為 `.\src\XXX.Core\Configuration`
+
+  - ```C#
+    private static IConfigurationRoot BuildConfiguration(string path, string environmentName = null)
+    {
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(path)
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+    
+        return builder.Build();
+    }
+    ```
+
+    
+
 
 
 ## IIS 部署
