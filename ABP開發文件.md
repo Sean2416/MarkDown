@@ -394,6 +394,8 @@
 
    1. 調整Application Layer屬性中的輸出
 
+   2. 如果再IIS或docker中佈署時，API/首頁可以測通唯獨Swagger無法顯示，則請確認`Release`時有沒有產生XML檔案
+
       ![image-20201117105558634](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201117105558634.png)
 
 4. 將 Swagger 產生器新增至 `Startup.ConfigureServices` 
