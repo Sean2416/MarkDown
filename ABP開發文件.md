@@ -148,6 +148,13 @@
 
 
 
+- 如果Swagger沒有出來，但API可以使用。則，確認 `Application.xml`是否有產出
+  - 可以透過發佈專案確認資料夾內是否有檔案
+  - ![image-20201220114137012](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201220114137012.png)
+  - ![image-20201220114015693](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201220114015693.png)
+
+
+
 # Jenkins CI/CD
 
 1. 安裝Jenkins (https://jenkins.io/download/)
@@ -162,7 +169,7 @@
 
    - 調整URL設定
 
-     ![image-20201216154128447](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201216154128447.png)
+     ![image-20201220102855513](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201220102855513.png)
 
 4. 安裝套件 - 管理Jenkins > 管理外掛程式
 
@@ -171,8 +178,6 @@
       - 如果需要使用Jenkins建置.Net專案，需要設定MsBuild
 
       - 安裝完成後至 (管理Jenkins >Global Tool Configuration) 調整設定
-
-        ![image-20201216153043997](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201216153043997.png)
 
    2. Nuget
 
@@ -183,33 +188,28 @@
       - 設定環境變數的Path以使用Nuget command
 
         - 控制台 > 系統 > 進階系統設定 > 環境變數
-        - 編輯使用者變數與系統變數, 在Path中加入C:\Nuget\
-
+     - 編輯使用者變數與系統變數, 在Path中加入C:\Nuget\
+   
       - 於Jenkins設定Nuget
 
         - 管理Jenkins > 設定系統
-        - 於Nuget區塊設定NuGet command line executable. 例如: C:\Nuget\nuget.exe
+     - 於Nuget區塊設定NuGet command line executable. 例如: C:\Nuget\nuget.exe
         - 儲存
-
-        ![image-20201216153544608](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201216153544608.png)
-
+   
    3. PowerShell
 
    4. Docker
 
       - 設定Docker.exe 執行位置
-
-        ![image-20201216153356432](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201216153356432.png)
-
-   5. GitHub
-
-      ![image-20201216153515560](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201216153515560.png)
-
+- ![image-20201220114238475](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201220114238475.png)
+      
+5. GitHub
+   
 5. 建立新工作
 
    1. 設定 `Git源碼管理`
 
-      ![image-20201216154231754](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201216154231754.png)
+      ![image-20201220114404042](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201220114404042.png)
 
    2. 設定 `建置觸發程序`
 
@@ -217,20 +217,26 @@
 
          - 此URL 不能使用Localhost，需使用外部可連接的URL。否則無法連接
 
-         ![image-20201216155041288](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201216155041288.png)
+         ![image-20201220115512996](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201220115512996.png)
 
       2. 至Github > Repository > 設定 > Webhooks
 
-         -  設定 2-1`Payload URL` 建置新的Weebhook
+         - 設定 **2-1** `Payload URL` 建置新的Weebhook
 
-           ![image-20201216154750170](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20201216154750170.png)
+           ![image-20201220115554172](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201220115554172.png)
+
+      3. 勾選 `GitHub hook trigger for GITScm polling`
+
+        ![image-20201220115433644](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201220115433644.png)
+
+        
 
    3. 設定建置程序
-
+   
       1. 新增 `建置步驟 > PowerShell`
-
+   
       2. 撰寫建置程序
-
+   
          ```powershell
          Write-Host  "1. Start Building For ABP On Docker"
          
@@ -239,13 +245,13 @@
          docker rm myproject
          docker rmi myproject_image
          
-         Write-Host  "3. Build Image"
+      Write-Host  "3. Build Image"
          docker build -t myproject_image .
            
          Write-Host  "4. Start Container"
          docker run -d -p 8000:80 --name myproject myproject_image
          ```
-
+   
          
 
 
@@ -962,6 +968,10 @@ public class Member
 ------
 
 # 參考
+
+## Docker
+
+1. [DockerFile](https://www.jinnsblog.com/2018/12/docker-dockerfile-guide.html)
 
 ## CI/CD
 
