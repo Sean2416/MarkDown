@@ -245,14 +245,17 @@
          docker rm myproject
          docker rmi myproject_image
          
+         ```
+      
       Write-Host  "3. Build Image"
          docker build -t myproject_image .
            
          Write-Host  "4. Start Container"
-         docker run -d -p 8000:80 --name myproject myproject_image
+      docker run -d -p 8000:80 --name myproject myproject_image
          ```
-   
+      
          
+         ```
 
 
 
@@ -407,13 +410,226 @@
 
 ------
 
-# Microsoft.AspNetCore.Identity
 
-## User
 
-1. 定義Identity所需的TUser的基底類別
+# Json Web Token
 
-2. 定義驗證使用者資訊所需之基本屬性，後續透過擴充方式進行調整
+- JWT是一種『有限時間內可利用認證令牌要求對應的操作權限』的一種方法
+
+- 使用者登入後產生Token，後續針對Request內夾帶的Token進行驗證。
+
+  - 客戶端從伺服器端取得認證簽名後，伺服器端只對認證簽名進行驗證，從認證簽名來判斷是不是具備指定的操作資格．除此之外還會判斷令牌是否過期、是否是黑名單等狀況。
+
+- 主要驗證內容為產生Token時的資訊內容。Ex.
+
+  - 相同的 **Issuer **設定值
+  - 相同的 **Audience **設定值
+  - 驗證 **Token **有效期限
+    - 符合對稱式加密的簽章
+  - Token內可包含自定義資訊，但驗證時不會針對使用者進行驗證，因為驗證時不會再連接DB。
+  - 因此，只要產生Token的設定一致，不同Service也可以透過相同Token驗證
+
+- 包含了 **header**、**payload**和**signature** 三個部分
+
+  - **Header** 
+
+    - 包含了兩個主要資訊：使用的加密演算法和token的類型(基本上就是JWT)
+    - 物件之後會以base64Url的方式轉換成字串
+
+    ```C#
+    // 使用HS256演算法來產生JWT token
+    {
+      "alg": "HS256",
+      "typ": "JWT"
+    }
+    ```
+
+  - **Payload**
+
+    - 包含了聲明的資料，這裡可以存放一些基本的驗證資訊
+    - 定義上有 3 種聲明 (Claims)
+      - Reserved (註冊聲明)
+      - Public (公開聲明)
+      - Private (私有聲明)
+    - Reserved (註冊聲明)
+      - iss (Issuer) - JWT的發行人
+      - sub (Subject) - JWT的主題（用戶）
+      - aud（audience）：JWT的目標收件人
+      - exp（expiration time）：JWT到期的時間
+      - nbf（not before time）：不得接受JWT處理的時間
+      - iat（issued at time）：發布JWT的時間; 可用於確定JWT的年齡
+      - jti（JWT ID）：唯一標識符; 可用於防止JWT被重放（允許令牌僅使用一次）
+    - base64 加密（該加密是可以對稱解密的)
+
+    ```C#
+    /*
+        sub就是RFC7519中定義的基本資訊，
+        age則是我們自己加上去的
+    */
+    
+    {
+      "sub": "wellwind",
+      "age": 30
+    }
+    ```
+
+  - **Signature**
+
+    - 用來確保資料完整性的一個雜湊簽章
+
+    - 可以選用任何雜湊演算法來進行處理
+
+- 驗證流程
+
+  ![img](https://dotblogsfile.blob.core.windows.net/user/wellwind/c93407af-3191-48e8-9029-2e02a7e03b1e/1479955047_94613.png)
+
+- 流程
+
+  1. 使用者登入進行身分驗證後產生Token
+
+     ```C#
+     [Route("api/[controller]")]
+     [ApiController]
+     public class AuthController : ControllerBase
+     {
+         private readonly IConfiguration _config;
+     
+         public AuthController(IConfiguration configuration)
+         {
+             _config = configuration;
+         }
+     
+         // GET api/auth/login
+         [HttpGet, Route("login")]
+         public IActionResult Login(string name)
+         {
+             // STEP0: 在產生 JWT Token 之前，可以依需求做身分驗證
+     
+             // STEP1: 建立使用者的 Claims 聲明，這會是 JWT Payload 的一部分
+             var userClaims = new ClaimsIdentity(new[] {
+                 new Claim(JwtRegisteredClaimNames.NameId, name),
+                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                 new Claim("CustomClaim", "Anything You Like")
+             });
+             // STEP2: 取得對稱式加密 JWT Signature 的金鑰
+             // 這部分是選用，但此範例在 Startup.cs 中有設定 ValidateIssuerSigningKey = true 所以這裡必填
+             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+             // STEP3: 建立 JWT TokenHandler 以及用於描述 JWT 的 TokenDescriptor
+             var tokenHandler = new JwtSecurityTokenHandler();
+             var tokenDescriptor = new SecurityTokenDescriptor
+             {
+                 Issuer = _config["Jwt:Issuer"],
+                 Audience = _config["Jwt:Issuer"],
+                 Subject = userClaims,
+                 Expires = DateTime.Now.AddMinutes(30),
+                 SigningCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256)
+             };
+             // 產出所需要的 JWT Token 物件
+             var securityToken = tokenHandler.CreateToken(tokenDescriptor);
+             // 產出序列化的 JWT Token 字串
+             var serializeToken = tokenHandler.WriteToken(securityToken);
+     
+             return new ContentResult() { Content = serializeToken };
+         }
+     }
+     ```
+
+  2. 專案內加入驗證
+
+     ```C#
+     public void ConfigureServices(IServiceCollection services)
+     {
+         services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+     
+         // STEP1: 設定用哪種方式驗證 HTTP Request 是否合法
+         services
+         // 檢查 HTTP Header 的 Authorization 是否有 JWT Bearer Token
+         .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+         // 設定 JWT Bearer Token 的檢查選項
+         .AddJwtBearer(options =>
+          {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = Configuration["Jwt:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = Configuration["Jwt:Issuer"],
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey
+                    (Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
+            };
+          });
+     }
+     ```
+
+  3. 驗證API
+
+     ```C#
+     [Route("api/[controller]")]
+     [ApiController]
+     public class ValuesController : ControllerBase
+     {
+         // GET api/values/anonymous
+         /// <summary>使用匿名登入，無視於身分驗證</summary>
+         [AllowAnonymous]
+         [HttpGet, Route("anonymous")]
+         public IActionResult Anonymous()
+         {
+             return new ContentResult() { Content = $@"For all anonymous." };
+         }
+     
+         // GET api/values/authorize
+         /// <summary>使用身分驗證，HTTP 的 Authorization Header 必須設定合法的 JWT Bearer Token 才能使用</summary>
+         [Authorize]
+         [HttpGet, Route("authorize")]
+         public IActionResult All()
+         {
+             return new ContentResult() { Content = $@"For all client who authorize." };
+         }
+     }
+     ```
+
+## JwtRegisteredClaimNames 屬性
+
+- 在建立使用者的 Claims 聲明時，我們會用到很多 `JwtRegisteredClaimNames` 結構型別，來取得是先定義好的字串
+
+- |   Claim    | 說明                                                 | 連結                                         |
+  | :--------: | :--------------------------------------------------- | -------------------------------------------- |
+  |    Jti     | 表示 JWT ID，Token 的唯一識別碼                      | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Iss     | 表示 Issuer，發送 Token 的發行者                     | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Iat     | 表示 Issued At，Token 的建立時間                     | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Exp     | 表示 Expiration Time，Token 的逾期時間               | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Sub     | 表示 Subject，Token 的主體內容                       | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Aud     | 表示 Audience，接收 Token 的觀眾                     | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Typ     | 表示 Token 的類型，例如 JWT 表示 JSON Web Token 類型 | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Nbf     | 表示 Not Before，定義在什麼時間之前，不可用          | http://tools.ietf.org/html/rfc7519#section-4 |
+  |   Actort   | 識別執行授權的代理是誰                               | http://tools.ietf.org/html/rfc7519#section-4 |
+  |   NameId   | 使用者識別碼                                         | http://tools.ietf.org/html/rfc7519#section-4 |
+  | FamilyName | 使用者姓氏                                           | http://tools.ietf.org/html/rfc7519#section-4 |
+  | GivenName  | 使用者名字                                           | http://tools.ietf.org/html/rfc7519#section-4 |
+  |   Gender   | 使用者性別                                           | http://tools.ietf.org/html/rfc7519#section-4 |
+  |   Email    | 使用者的電子郵件                                     | http://tools.ietf.org/html/rfc7519#section-4 |
+  | Birthdate  | 使用者生日                                           | http://tools.ietf.org/html/rfc7519#section-4 |
+  |  Website   | 使用者的網站                                         | http://tools.ietf.org/html/rfc7519#section-4 |
+
+  
+
+## Bearer Token 
+
+- HTTP 的認證「Authorization」方案有許多種格式，而 Bearer 就是其中一種且被定義在 Header 中的驗證方案，通常搭配於 JWT 上
+
+- Resource server 是資源服務器，即後端存放用戶生成的 API Token 的服務器。 
+- Authorization server 的意思是認證服務器，即後端專門用來處理認證的服務器
+- 這些東西都是由 [OAuth 2.0](http://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html) 中所定義出來的，在定義中說明了 Client 如何取得 Access Token 的方法
+
+
+
+## Microsoft.AspNetCore.Identity
+
+### TUser
+
+1. 定義使用者資訊所需之基本屬性，後續透過擴充方式進行調整
 
    ```C#
    public class BasicUser<TUser> : Entity<long>
@@ -424,20 +640,18 @@
    }
    ```
 
-3. 後續Identity內有使用User的類別皆需繼承至 `TUser`
+2. 後續Identity內有使用User的類別皆需繼承至 `TUser`
 
    ```C#
     public class BasicLogInManager<TUser> : IDomainService, ITransientDependency
            where TUser : BasicUser<TUser>
    ```
 
+###  IUserStore<TUser>
 
+- Identity 所定義的基底類別，主要負責 `User`的CRUD處理
 
-##  UserStore
-
-- 負責實作與資料庫的CRUD。
-
-- 需繼承.Net Identity<TUser>
+- `UserManager<TUser>` 引用。因此，若需要使用.Net Identity中的使用者管理類別則需建立繼承至IUserStore<TUser>的類別
 
 - 繼承後可實作針對資料處理的相關功能，沒有硬性規定資料處理的方式
 
@@ -463,8 +677,6 @@
   }
   ```
 
-  
-
 - 沒有資料庫連結
 
   ```C#
@@ -489,27 +701,27 @@
   }
   ```
 
-  
 
-## UserManager
+### UserManager<TUser>
 
-- 繼承 **Identity** 的 UserManager<TUser>
-- 包含使用者驗證、或資料處理的相關方法類別
-- 不直接操作資料庫
-- 關聯類別: IUserStore<TUser>
+- .Net Identity所定義針對使用者管理相關邏輯處理的基底類別
 
+- 包含使用者驗證、或資料處理的相關方法。但，不直接操作資料庫
 
+- 引用類別: IUserStore<TUser>
 
-## UserClaimsPrincipalFactory
+  ![image-20201221100757090](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201221100757090.png)
 
-- 繼承UserClaimsPrincipalFactory<TUser>
-- 將使用者資訊封裝至Claim中
+### UserClaimsPrincipalFactory<TUser>
 
+- .Net Identity所定義，針對使用者Claims進行處理的基底類別
+- 引用類別: `UserManager<TUser> `
 
+![image-20201221100741165](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201221100741165.png)
 
-# IdentityRegistrar
+### IdentityRegistrar
 
-- 將Identity相關的類別注入
+- 將Identity相關的類別注入專案中
 
 - 位置: `~.Web` StartUp中
 
@@ -526,7 +738,128 @@
   }
   ```
 
+## Login Manager
 
+### Login
+
+- 定義整理驗證流程:從身分驗證一直到回傳Token
+
+- ```C#
+  public virtual async Task<AuthResult> Login(TLoginModel loginModel)
+  {
+      var user = await UserAuth(loginModel);
+  
+      var tenancyID = await AuthTenant(user.Id, loginModel.TenancyID);          
+  
+      var loginResult = await GetLoginResultAsync(user);
+  
+      loginResult.Identity.AddClaim(new Claim(CustomClaimType.TenancyID, tenancyID.ToString()));
+  
+      var accessToken = CreateAccessToken(CreateJwtClaims(loginResult.Identity));
+  
+      return new AuthResult
+      {
+          AccessToken = accessToken,
+          ExpireInSeconds = (int)Config.JWTConfig.Expiration.TotalSeconds,
+          UserID = loginResult.User.Id
+      };
+  }
+  ```
+
+### UserAuth
+
+- 驗證使用者基本資料。如，帳號、密碼.....
+
+```C#
+public virtual async Task<TUser> UserAuth(TLoginModel loginModel)
+{
+
+    if (loginModel.Account.IsNullOrEmpty() || loginModel.Password.IsNullOrEmpty())
+        throw new UserFriendlyException("Invalid account or password");
+
+    var user = await UserManager.UserAuthenticate(loginModel.Account, loginModel.Password);
+
+    if (user == null)
+        throw new UserFriendlyException("Invalid account or password");
+
+    return user;
+}
+```
+
+### LoginResult
+
+- 針對登入者身分產生回傳內容
+
+  - 使用者
+
+  - 使用者相關資訊 (Claims)
+
+  - ```C#
+    public virtual async Task<LoginResult<TUser>> GetLoginResultAsync(TUser user)
+    {
+        try
+        {
+            using (var uow = UnitOfWorkManager.Begin())
+            {
+                await UserManager.InitializeOptionsAsync();
+    
+                var result = await CreateLoginResultAsync(user);
+    
+                await uow.CompleteAsync();
+    
+                return result;
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new UserFriendlyException(ex.Message);
+        }
+    }
+    
+    public virtual async Task<LoginResult<TUser>> CreateLoginResultAsync(TUser user)
+    {
+        var principal = await _claimsPrincipalFactory.CreateAsync(user);
+    
+        return new LoginResult<TUser> { 
+            User = user,
+            Identity = principal.Identity as ClaimsIdentity
+        };
+    }
+    ```
+
+### AccessToken
+
+- ![image-20201221102319737](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201221102319737.png)
+
+
+
+## AuthorizationHelper
+
+- ABP用來進行使用者Token驗證的基底類別
+
+- 會在 **Application Service**的 `AbpAuthorize` 時呼叫驗證
+
+- 內部包含Token的驗證及Permission的驗證
+
+  ![image-20201221142614202](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201221142614202.png)
+
+- `UserAuthorizationHelper` 衍生至AuthorizationHelper，自行開發改寫內部權限驗證功能
+
+- `IEnumerable<IAbpAuthorizeAttribute>` 會根據 **Application Service** 中 `AbpAuthorize` 所傳入的參數內容進行權限驗證
+
+- ![image-20201221143112437](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201221143112437.png)
+
+- ![image-20201221142731451](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201221142731451.png)
+
+
+
+## PermissionChecker
+
+- `自行開發`，用來確認使用者是否有所需權限的類別
+
+- 透過驗證使用者 `Token`內所夾帶的角色清單是否包含在權限設定做盼斷
+
+  ![image-20201221143355333](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20201221143355333.png)
 
 
 
