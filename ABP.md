@@ -3602,6 +3602,52 @@ services.AddMvc();
 
 ### Multi-Tenancy
 
+- ABP 內建提供多組織架構，資料表內 加入`IMayHaveTenant` 、`IMustHaveTenant` 就能在查找資料時自動過濾組織資料。
+
+  - ###### 在 `IAbpSession`中有一個 `TenantId`的值，預設取得Claims中的`AbpClaimTypes.TenantId`值。
+
+  - ###### 如果開啟多組織架構時資料表會自動根據TenantId去做資料篩選。(例如，登入者Session內TenantId取得為`組織編號3`，則有使用多組織註記的資料表會自動篩選編號為3的內容出來)
+
+  - ###### 多組織標記
+
+    - ######  IMustHaveTenant: 加入此註記的資料表會自動產生`TenantId`欄位，且該欄位為必填。並且在新增資料時會自動根據登入者的TenantId塞入欄位資料。
+  
+    - ###### IMayHaveTenant: 加入此註記的資料表會自動產生`TenantId`欄位，該欄位為非必填。在進行資料新增時，必須主動給予TenantId欄位數值。
+  
+    - ###### 兩則標記共通處在於查詢資料時，只要有開啟多組織標記則資料表會自動根據登入者TenantId篩選資料
+  
+    - ```C#
+      Configuration.MultiTenancy.IsEnabled = true; //在Module內加入開啟多組織架構
+      ```
+  
+    - ###### 沒有使用多組織標記的資料表不在此限中
+  
+- ###### 由於目前專案屬性，因此框架預設不啟用多組織架構。下面簡要說明加入多組織架構的流程
+
+  1. ######  在 `~CoreModule` > `PreInitialize`內加入
+
+     ```C#
+     onfiguration.MultiTenancy.IsEnabled = true; //啟動多組織架構
+     ```
+
+  2. ######  實作組織架構的相關資料表、函式及使用者關聯。並在登入時根據登入者身分加入組織編號資料進入Claims中
+
+     1. 登入時取得登入者組織編號
+
+     2. 於 `Authorization` > `ClaimsPrincipalFactory` 內加入`tenantId`
+
+        ```C#
+        principal.Identities.First().AddClaim(new Claim(AbpClaimTypes.TenantId, user?.TenantId.ToString()));
+        ```
+
+  3. ######  `Authorization`  >  `SessionManager` 預設取得 Claims內 `AbpClaimTypes.TenantId`資料作為登入者的 TenantId，若有需要變更請自行改寫
+
+  4. ###### 資料表內 加入`IMayHaveTenant` 、`IMustHaveTenant` ，系統即會自動根據TenantId欄位進行資料過濾
+
+- ## Notice
+
+  - ###### ABP預設有PowerUser的權限，當Session回傳的`TenantId`為NULL時，該登入者即視為最高權限使用者。該使用者可以查看所有的資料表，而不會根據TenantId篩選。
+
 - Tenancy類似組織的概念，ABP有支援在一個服務中包含多組織。
 
   - ##### Single Deployment - Multiple Database
