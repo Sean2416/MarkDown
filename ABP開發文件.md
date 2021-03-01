@@ -168,22 +168,22 @@
       
       FROM mcr.microsoft.com/dotnet/core/sdk:3.1-buster AS build
       WORKDIR /
-      COPY ["src/MyABPProject.Web/MyABPProject.Web.csproj", "src/MyABPProject.Web/"]
-      COPY ["src/MyABPProject.EntityFrameworkCore/MyABPProject.EntityFrameworkCore.csproj", "src/MyABPProject.EntityFrameworkCore/"]
-      COPY ["src/MyABPProject.Core/MyABPProject.Core.csproj", "src/MyABPProject.Core/"]
-      COPY ["src/MyABPProject.Application/MyABPProject.Application.csproj", "src/MyABPProject.Application/"]
-      RUN dotnet restore "src/MyABPProject.Web/MyABPProject.Web.csproj"
+      COPY ["src/ABPFramework.Web/ABPFramework.Web.csproj", "src/ABPFramework.Web/"]
+      COPY ["src/ABPFramework.EntityFrameworkCore/ABPFramework.EntityFrameworkCore.csproj", "src/ABPFramework.EntityFrameworkCore/"]
+      COPY ["src/ABPFramework.Core/ABPFramework.Core.csproj", "src/ABPFramework.Core/"]
+      COPY ["src/ABPFramework.Application/ABPFramework.Application.csproj", "src/ABPFramework.Application/"]
+      RUN dotnet restore "src/ABPFramework.Web/ABPFramework.Web.csproj"
       COPY . .
-      WORKDIR "/src/MyABPProject.Web"
-      RUN dotnet build "MyABPProject.Web.csproj" -c Release -o /app/build
+      WORKDIR "/src/ABPFramework.Web"
+      RUN dotnet build "ABPFramework.Web.csproj" -c Release -o /app/build
       
       FROM build AS publish
-      RUN dotnet publish "MyABPProject.Web.csproj" -c Release -o /app/publish
+      RUN dotnet publish "ABPFramework.Web.csproj" -c Release -o /app/publish
       
       FROM base AS final
       WORKDIR /app
       COPY --from=publish /app/publish .
-      ENTRYPOINT ["dotnet", "MyABPProject.Web.dll"]
+      ENTRYPOINT ["dotnet", "ABPFramework.Web.dll"]
       ```
 
 2. 建置Docker Image

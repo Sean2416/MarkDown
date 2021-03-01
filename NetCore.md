@@ -833,6 +833,105 @@ public class Member
 
 
 
+# Template
+
+- .Net可以將專案設定為`Template`，其後可依據Template架構建立一模一樣的專案結構
+
+- 簡單的說，`Template`就是複製整個專案並重新命名誠新專案
+
+- `Template`是根據要產生時對應路徑的專案結構作複製
+
+- 步驟說明:
+
+  1. 撰寫設定檔。檔案位置需再根目錄建置`.template.config`資料夾
+
+     ![image-20210301111456324](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210301111456324.png)
+
+  2. 在`.template.config`資料夾內建立`template.json`設定檔
+
+     ```powershell
+     {
+       "$schema": "http://json.schemastore.org/template",
+       "author": "SeanChu",
+       "classifications": [ "ABP","API" ], 
+       "name": "ABP Framework with jwt auth",
+       "identity": "ABP_Framework.jwt.Sample",         
+       "groupIdentity":"ABP_Framework.jwt.Sample",
+       "shortName": "ABP_JWT",
+       "tags": {
+         "language": "C#",
+         "type":"project"
+       },
+       "sourceName": "ABPFramework",  //再產生新專案時，會將專案內所有SourceName對應的值都變更為新的名稱
+       //在執行 `dotnet new` 的時候，程式會自動找出**來源檔案和資料夾**中所有**檔案/目錄名稱**與**檔案內容**，並將字串替換成 `-n` 參數指定的名稱字串
+       "preferNameDirectory": true,
+       "symbols":{
+         "includetest": {
+             "type": "parameter",
+             "datatype": "bool",
+             "defaultValue": "true"
+         }
+       },
+       "sources": [
+     		{
+     		  "modifiers": [
+     			{
+     			  "exclude": [ ".git/**" ] //設定不要複製的檔案
+     			}
+     		  ]
+     		}
+     	  ]
+     }
+     ```
+
+     - `$schema`: 此為 `template.json` 檔案的 JSON 結構描述 URI，只要設定上去，編輯器就會開始提供 IntelliSense 自動完成能力。
+
+       ![image](https://user-images.githubusercontent.com/88981/72673878-e0e24d00-3aaa-11ea-9aa8-0967873634a9.png)
+
+     - `identity`: 此範本的**唯一名稱**，不能跟任何其他範本重複。
+
+     - `name`: 使用者在執行 `dotnet new -l` 時會看到的**範本名稱**。
+
+     - `shortName`: 執行 `dotnet new shortName` 命令時所使用的**範本短名**。
+
+     - `author`: 宣告範本的**作者名稱**。
+
+     - `classifications`: **範本分類** (字串陣列)。當你執行 `dotnet new -l` 列出範本清單時，會自動出現在「**標記**」(**Tags**) 欄位中。
+
+     - `tags`: 用來宣告範本的標記資訊，從名稱來看，很容易跟 `classifications` 混淆，因為都是「標記」的意思。這個屬性主要用來跟 `dotnet new` 的 `--type` 與 `-lang` 兩個參數搭配使用。`tags` 屬性下包含兩個子屬性：
+
+       - `language`: 程式語言。可能的值有：`C#`、`VB`、`F#`，除此之外你也可以設定為任何語言。
+       - `type`: 範本類型。這裡只有兩種可能的值：`project` (專案範本)、`item` (項目範本)。你也可以指定任意字串。
+
+     - `sourceName`: 指定**來源名稱**。
+
+       - 我們在執行 `dotnet new` 的時候，可以指定 `-n` 參數，這個參數定義了**專案名稱**。
+       - 這裡所定義的 `sourceName` 其實是一個可以被取代的變數，如果你設定為 `MyProject.Con` 的話，當你在執行 `dotnet new` 的時候，程式會自動找出**來源檔案和資料夾**中所有**檔案/目錄名稱**與**檔案內容**，並將 `MyProject.Con` 字串替換成 `-n` 參數指定的名稱字串。
+
+     - `preferNameDirectory`: 在執行 `dotnet new` 的時候，如果你有指定 `-n` 參數，預設會建立一個與 `-n` 參數值同名的資料夾，如果你將該屬性設定為 `false` 的話，就不會建立額外的資料夾。此屬性預設為 `true`。
+
+  3. 註冊Template
+
+     - 透過CLI指令，將Template註冊 `dotnet new -i D:\github\abp_framework`
+     - 如果要移除Template `dotnet new -u D:\github\abp_framework`
+     - ![image-20210301112225816](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210301112225816.png)
+
+  4. 產生新的專案
+
+     ![image-20210301112521376](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210301112521376.png)
+
+  ![image-20210301112554891](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210301112554891.png)
+
+## 參考
+
+- [自訂 dotnet new 專案範本的重要觀念與範例]: https://blog.miniasp.com/post/2020/01/19/dotnet-new-template-how-to
+
+- [How to create your own templates for dotnet new]: https://devblogs.microsoft.com/dotnet/how-to-create-your-own-templates-for-dotnet-new/
+
+- [示範各種不同 dotnet new 自訂範本的專案]: https://github.com/doggy8088/netcore-templates-samples
+
+  
+
 # Json Web Token
 
 - JWT是一種『有限時間內可利用認證令牌要求對應的操作權限』的一種方法
