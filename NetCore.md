@@ -4091,11 +4091,15 @@ public class Role : Entity, IMayHaveTenant
 
 ## IIS 部署
 
-1. 確認資料夾權限
+1. 安裝 **Windows Server Hosting**
 
-2. 1. [dotnet-hosting]: https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/iis/?view=aspnetcore-3.1#install-the-net-core-hosting-bundle
+2.  確認資料夾權限
+
+3. 1. [dotnet-hosting]: https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/iis/?view=aspnetcore-3.1#install-the-net-core-hosting-bundle
 
    2. [SDK、RunTime]: https://dotnet.microsoft.com/download
+
+   3. [ IIS 上部屬 .NET Core](https://ithelp.ithome.com.tw/articles/10190336).
 
 
 ### Keeping the app to run continuously on IIS
