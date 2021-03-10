@@ -190,24 +190,28 @@ docker container ls --all (列出全部容器)
   * #### .net core
 
     ```powershell
-    # Get Base Image (Full .NET Core SDK)
-    FROM mcr.microsoft.com/dotnet/core/sdk:2.2 AS build-env
-    WORKDIR /app
+    # https://hub.docker.com/_/microsoft-dotnet
+    FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+    ENV ASPNETCORE_ENVIRONMENT Stage
+    EXPOSE 80
+    WORKDIR /source
     
-    # Copy csproj and restore
-    COPY *.csproj ./
+    # copy csproj and restore as distinct layers
+    COPY *.sln .
+    COPY Tool/*.csproj ./Tool/
     RUN dotnet restore
     
-    # Copy everything else and build
-    COPY . ./
-    RUN dotnet publish -c Release -o out
+    # copy everything else and build app
+    COPY Tool/. ./Tool/
+    WORKDIR /source/Tool
+    RUN dotnet publish -c release -o /app --no-restore
     
-    # Generate runtime image
-    FROM mcr.microsoft.com/dotnet/core/aspnet:2.2
+    # final stage/image
+    FROM mcr.microsoft.com/dotnet/aspnet:5.0
     WORKDIR /app
-    EXPOSE 80
-    COPY --from=build-env /app/out .
-    ENTRYPOINT ["dotnet", "ICW.BioSecurity.Api.dll"]
+    COPY --from=build /app ./
+    ENTRYPOINT ["dotnet", "Tool.dll"]
+    
     ```
 
   * #### Vue.js
@@ -274,7 +278,7 @@ docker run -d -p  80:80 --name icw_cloud icw_cloud
 
 
   	# build stage
-
+  	
   	FROM node:lts-alpine as build-stage
   	WORKDIR /app
   	COPY package*.json ./
