@@ -3958,6 +3958,74 @@ public class Role : Entity, IMayHaveTenant
 
 ## Entity Framework Core
 
+- Dataannotation
+
+  - ```C#
+    public class Movie
+    {
+        public int Id { get; set; }
+    
+        [StringLength(60, MinimumLength = 3)]
+        [Required]
+        public string Title { get; set; }
+    
+        [Display(Name = "Release Date")]
+        [DataType(DataType.Date)]
+        public DateTime ReleaseDate { get; set; }
+    
+        [Range(1, 100)]
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal Price { get; set; }
+    
+        [RegularExpression(@"^[A-Z]+[a-zA-Z]*$")]
+        [Required]
+        [StringLength(30)]
+        public string Genre { get; set; }
+    
+        [RegularExpression(@"^[A-Z]+[a-zA-Z0-9""'\s-]*$")]
+        [StringLength(5)]
+        [Required]
+        public string Rating { get; set; }
+    }
+    ```
+
+    
+
+- SQL Server建立結構描述
+
+  - **MigrationHistory** 變更 - 至`DbContextOptionsConfigurer.cs`
+
+    - ```C#
+      public static void Configure(
+          DbContextOptionsBuilder<ABPFrameworkDbContext> dbContextOptions, 
+          string connectionString
+          )
+      {  
+          dbContextOptions.UseSqlServer(connectionString,
+          x => x.MigrationsHistoryTable("MigrationsHistory", "ABP"));
+      }
+      ```
+
+      
+
+  - 其他資料表變更
+
+    - ```C#
+      protected override void OnModelCreating(ModelBuilder modelBuilder)
+      {
+          modelBuilder.HasDefaultSchema("ABP");
+         
+          base.OnModelCreating(modelBuilder);
+      }
+      ```
+
+      
+
+- ![image-20210311135941988](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210311135941988.png)
+
+  
+
 - 隱藏Entity欄位，不建立在資料庫中
 
   ```C#
