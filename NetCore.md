@@ -922,6 +922,14 @@ public class Member
 
   ![image-20210301112554891](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210301112554891.png)
 
+## 注意事項:
+
+- ###### 透過IIS架設API產生框架時，會因為IIS權限不足導致產生失敗。
+
+  - ###### 解決方式為將API所使用的`應用程式集區` 變更為擁有管理者權限的使用者
+
+    ![image-20210320160035374](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210320160035374.png)
+
 ## 參考
 
 - [自訂 dotnet new 專案範本的重要觀念與範例]: https://blog.miniasp.com/post/2020/01/19/dotnet-new-template-how-to

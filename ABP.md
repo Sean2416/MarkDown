@@ -2476,9 +2476,43 @@ public class ActivityWriter :
     }
     ```
 
-  ```
-  
-  ```
+- `DataAnnotation`驗證資料欄位
+
+  - ```C#
+    /// <summary>
+    ///  客戶新增Input
+    /// </summary>
+    [AutoMapTo(typeof(SeatOrder))]
+    public class CreateOrderInput
+    {        
+    
+        /// <summary>
+        /// 訂票人姓名
+        /// </summary>
+        [StringLength(10, ErrorMessage = "訂票人姓名不得超過10個字")]
+        public string CustomerName { get; set; }
+    
+        /// <summary>
+        /// 訂票人電話
+        /// </summary>
+        [StringLength(10)]
+        public string CustomerPhone { get; set; }
+    
+        /// <summary>
+        /// 座位號碼
+        /// </summary>
+        [StringLength(5)]
+        public string SeatId { get; set; }
+    
+        /// <summary>
+        /// 票價
+        /// </summary>
+        public decimal Price { get; set; }
+    
+    }
+    ```
+
+    
 
 - `IObjectMapper` 可協助我們將　`List<User>` 轉換成`List<UserDto>`
 
@@ -3010,7 +3044,7 @@ public class SimpleMailTaskCoreModule : AbpModule
   - `AbpAuthorizationException` 回傳 **401 (unauthorized)**
   - `AbpValidationException` 回傳 **400 (bad request)**
   - `EntityNotFoundException` 回傳 **404 (not found)**
-  - `Exception`、`UserFriendlyException`回傳 **500 (internal server error)**
+  - `Exception`、` `回傳 **500 (internal server error)**
 
 ###  開發順序
 
@@ -4079,6 +4113,10 @@ public class Role : Entity, IMayHaveTenant
 
    2. [SDK、RunTime]: https://dotnet.microsoft.com/download
 
+### PUT And Delete 權限
+
+- **HTTP 错误 405.0 - Method Not Allowed** - 出現此錯誤時請做以下調整
+- ![image-20210312153639993](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210312153639993.png)
 
 ### Keeping the app to run continuously on IIS
 
