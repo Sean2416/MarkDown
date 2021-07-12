@@ -2859,6 +2859,8 @@ public class SimpleMailTaskCoreModule : AbpModule
 
 - 排程會在Service啟動時候執使行，並持續執行`Timer`
 
+- 排程會以Trigger的型式觸發，因此當Trigger名稱重複時將會發生錯誤。而不同名稱的Trigger可以同時進行。(效能)
+
 - 使用  [**Abp.Quartz**](https://www.nuget.org/packages/Abp.Quartz) 
 
   1. NuGet 安裝套件
@@ -4103,26 +4105,60 @@ public class Role : Entity, IMayHaveTenant
 
     
 
-
-
-## IIS 部署
+# IIS 部署
 
 1. 確認資料夾權限
 
-2. 1. [dotnet-hosting]: https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/iis/?view=aspnetcore-3.1#install-the-net-core-hosting-bundle
+2.  安裝環境
 
-   2. [SDK、RunTime]: https://dotnet.microsoft.com/download
+   1. dotnet-hosting https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/iis/?view=aspnetcore-3.1#install-the-net-core-hosting-bundle 
 
-### PUT And Delete 權限
+   [SDK、RunTime]: https://dotnet.microsoft.com/download
+
+
+
+## IIS環境設定
+
+1. ###### .NetCore 裡面可以依據IIS的環境設定，自動取得不同版本的環境設定檔 (appsettings.XXX.json )
+
+2. ######  因此，再設定IIS時，需要先定義這次執行的環境值
+
+   1. 關閉準備設定的IIS站台
+
+   2. ######  開啟IIS站台並點選設定編輯器
+
+      ![image-20210712141520635](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712141520635.png)
+
+   3. ###### 選擇“system.webServer/aspNetCore”
+
+      ![image-20210712141732394](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712141732394.png)
+
+   4. ###### 再找到“environmentVariable”项，點擊編輯項目
+
+      ![image-20210712141918893](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712141918893.png)
+
+   5. ###### 找到或新增 `ASPNETCORE_ENVIRONMENT` 環境變數，並給定變數值 (Production)。
+
+      - ###### 這邊的變數值根據你想要讀取的 `appsettings.XXX.json ` 填入 XXX
+
+      ![image-20210712142130492](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712142130492.png)
+
+   6. 完成後請點選套用並重啟IIS站台，確認該數值有正確存入
+
+      ![image-20210712142408836](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712142408836.png)
+
+
+
+## PUT And Delete 權限
 
 - **HTTP 错误 405.0 - Method Not Allowed** - 出現此錯誤時請做以下調整
 - ![image-20210312153639993](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210312153639993.png)
 
-### Keeping the app to run continuously on IIS
+## 確保排程持續啟動
 
 - 由於IIS會自動回收期限內沒有使用的**application pool**。因此長時間的排程(Quatz)會被自動關閉。
 
-  ![image-20200629162856867](C:\Users\6591\AppData\Roaming\Typora\typora-user-images\image-20200629162856867.png)
+  ![image-20200629162856867](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20200629162856867.png)
 
   
 
@@ -4149,6 +4185,10 @@ public class Role : Entity, IMayHaveTenant
   3. **設定IIS網站**
 
      ![Install IIS application initialization module](https://i2.wp.com/www.taithienbo.com/wp-content/uploads/screenshots/IIS_Application_Initialization/Screen-Shot-2018-10-06-at-4.22.39-PM-2.png?ssl=1)
+
+
+
+
 
 
 
