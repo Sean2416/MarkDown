@@ -336,6 +336,71 @@
 
 
 
+## User Management
+
+- ###### **AbpUsers** 
+
+  - 代表應用程式中的使用者實體，繼承AbpUser原生屬性。
+
+  - 路徑: ~\aspnet-core\src\ABPFramework.Core\Authorization\Users\User.cs
+
+  - | AccessFailedCount      | 登入錯誤次數，預設超過五次後重新計算並更新鎖定時間           |
+    | ---------------------- | ------------------------------------------------------------ |
+    | AuthenticationSource   |                                                              |
+    | ConcurrencyStamp       | 作為確認資料版本的隨機值。<br />資料更新前確認`ConcurrencyStamp`是否與現行資料庫版本一致，若不相同則代表資料已經被更新過無法直接更新。<br />資料更新後重新賦予新的Value，以確保不會同時間更新資料導致覆蓋情形<br /> |
+    | EmailConfirmationCode  | 信箱驗證代碼，供使用者進行信箱驗證                           |
+    | IsEmailConfirmed       | 使用者信箱是否進行過驗證                                     |
+    | IsLockoutEnabled       | 是否啟用使用者鎖定功能，預設為true<br />搭配LockoutEndDateUtc一起使用 |
+    | IsPhoneNumberConfirmed |                                                              |
+    | IsTwoFactorEnabled     |                                                              |
+    | LockoutEndDateUtc      | 使用者鎖定後解鎖時間,預設登入超過五次後會進行鎖定<br />只有在IsLockoutEnabled開啟時才會在登入時判斷此欄位 |
+    | PasswordResetCode      |                                                              |
+    | SecurityStamp          |                                                              |
+    | TenantId               |                                                              |
+
+- ###### Manager
+
+  - [User Manager](https://github.com/aspnetboilerplate/aspnetboilerplate/blob/7647670db2a42b25be864094a42afe03ff118c2d/src/Abp.Zero/Authorization/Users/AbpUserManager.cs)
+  - [Login Manager](https://github.com/aspnetboilerplate/aspnetboilerplate/blob/4bfc29aaaab3846962902e0aba86f57a475898f6/src/Abp.Zero/Authorization/AbpLoginManager.cs)
+
+- ###### 信箱驗證
+
+  - 當AbpSetting中`Abp.Zero.UserManagement.IsEmailConfirmationRequiredForLogin = true`時，系統會自動針對登入者的`IsEmailConfirmed`進行檢視。若不為`true`則會跳出信箱尚未驗證錯誤，使用者將無法登入。
+  - 實作信箱驗證功能如下:
+    - 2
+
+- ###### 手機驗證
+
+- ###### 登入次數相關
+
+  - ###### 在使用者登入時，`LoginManager`會根據登入情形呼叫`UserManager`處理錯誤次數、鎖定時間等相關邏輯。
+
+  - ###### 登入鎖定相關設定皆可透過`AbpSetting`進行變更
+
+    - ```C#
+       public static class UserLockOut
+       {
+           //
+           // 摘要:
+           //    是否啟用使用者鎖定.
+           public const string IsEnabled = "Abp.Zero.UserManagement.UserLockOut.IsEnabled";
+           //
+           // 摘要:
+           //   登入錯誤最大次數
+           public const string MaxFailedAccessAttemptsBeforeLockout = "Abp.Zero.UserManagement.UserLockOut.MaxFailedAccessAttemptsBeforeLockout";
+           //
+           // 摘要:
+           //     鎖定時間
+           public const string DefaultAccountLockoutSeconds = "Abp.Zero.UserManagement.UserLockOut.DefaultAccountLockoutSeconds";
+                  }
+      ```
+
+  - [修正ABP回傳登入錯誤次數、鎖定時間](https://www.cnblogs.com/6112562a/p/14042055.html)
+
+
+
+
+
 
 
 ## 原生資料表
@@ -364,7 +429,7 @@
 | AbpRoles                       |                                                              |
 | AbpSettings                    | 參數設定檔，請參考 [ABPSetting](#Setting Management)         |
 | AbpTenantNotifications         |                                                              |
-| AbpTenants                     |                                                              |
+| AbpTenants                     | 使用MiltiTenancy時，定義Tenant基本資料 [ABPTenant](#Tenant Management) |
 | AbpUserAccounts                |                                                              |
 | AbpUserClaims                  |                                                              |
 | AbpUserLoginAttempts           |                                                              |
@@ -382,45 +447,9 @@
 
 
 
-- 
+## Session
 
 
-
-
-
-## User Manager
-
-- ###### Entity - User
-
-  - 代表應用程式中的使用者實體，繼承AbpUser原生屬性。
-
-  - 對應資料表**AbpUsers**  
-
-  - 路徑: ~\aspnet-core\src\ABPFramework.Core\Authorization\Users\User.cs
-
-  - | AccessFailedCount      |                                                              |
-    | ---------------------- | ------------------------------------------------------------ |
-    | AuthenticationSource   |                                                              |
-    | ConcurrencyStamp       | 作為確認資料版本的隨機值。<br />資料更新前確認`ConcurrencyStamp`是否與現行資料庫版本一致，若不相同則代表資料已經被更新過無法直接更新。<br />資料更新後重新賦予新的Value，以確保不會同時間更新資料導致覆蓋情形<br /> |
-    | EmailConfirmationCode  | 使用者信箱驗證代碼                                           |
-    | IsEmailConfirmed       | Email信箱是否驗證                                            |
-    | IsLockoutEnabled       |                                                              |
-    | IsPhoneNumberConfirmed |                                                              |
-    | IsTwoFactorEnabled     |                                                              |
-    | LockoutEndDateUtc      |                                                              |
-    | PasswordResetCode      |                                                              |
-    | SecurityStamp          |                                                              |
-    | TenantId               |                                                              |
-
-    
-
-- ###### Manager
-
-  - [Source Code](https://github.com/aspnetboilerplate/aspnetboilerplate/blob/7647670db2a42b25be864094a42afe03ff118c2d/src/Abp.Zero/Authorization/Users/AbpUserManager.cs)
-
-- ###### 信箱驗證功能
-
-  - 實作發送信箱驗證及驗證流程
 
 
 
