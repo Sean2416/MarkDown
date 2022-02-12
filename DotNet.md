@@ -14,6 +14,65 @@
 
 # ABP
 
+
+
+### Hangfire
+
+1. CLI安裝
+
+   - ```powershell
+     Install-Package Abp.HangFire.AspNetCore -version 6.6.2
+     Install-Package Hangfire.SqlServer -version 1.7.25
+     ```
+
+   - 第二個套件為指定hangfire紀錄存取位置(這邊指定SqlServer)
+
+2. 在 startup 中註冊 handfire
+
+   - 指定Hangfire連線資料庫,系統在執行時會建立相關資料表
+
+     - ```C#
+       services.AddHangfire(config =>
+       {
+           config.UseSqlServerStorage(_appConfiguration.GetConnectionString("Default"));
+       }); 
+       
+       ```
+
+   - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202202121118598.png)
+
+3.  在 configure 方法中加入
+
+   - 將`UseHangfireServer` 提前至 ` app.UseAbp`前，就能在其他`Module`中註冊Hangfire排程。
+
+   - ```C#
+     public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
+     {
+       app.UseHangfireServer();
+       app.UseHangfireDashboard();
+     
+       app.UseAbp(options => { options.UseAbpRequestLocalization = false; }); // Initializes ABP framework.
+     }
+     ```
+
+     
+
+   - 如果沒有在`UseAbp`前註冊的話，則會跳出下列錯誤
+
+     - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202202121306109.png)
+
+4. 最後，將 abp 預設的 background job manager 替換成 hangfire，這邊就根據你是用什麼專案模板，我是用前後端分離的，所以要替換的檔案就在 [ProjectName].Web.Core 專案中的 [ProjectName]WebCoreModule.cs 這隻檔案中
+
+5. [Abp 结成HangFire](https://www.cnblogs.com/tianxujun/p/15720646.html)
+
+5. [Hangfire Cron Expression](https://blog.csdn.net/long870294701/article/details/87983142)
+
+
+
+
+
+
+
 ## 系統參數
 
 ### AppSetting
