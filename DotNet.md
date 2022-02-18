@@ -1,10 +1,100 @@
 # Net 6
 
+## CLI建置專案
+
+### 新增套件
+
+- 移動至`.CSPROJ`檔案並新增下列程式碼
+
+  ```C#
+  //新增套件Hangfire.SqlServer 版本1.7.25
+  <PackageReference Include="Hangfire.SqlServer" Version="1.7.25" />
+  ```
+
+- 
 
 
 
+## IIS 部署
+
+1. 確認資料夾權限
+
+2. 安裝環境
+
+   1. dotnet-hosting https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/iis/?view=aspnetcore-3.1#install-the-net-core-hosting-bundle 
+
+   [SDK、RunTime]: https://dotnet.microsoft.com/download
 
 
+
+### IIS環境設定
+
+1. ###### .NetCore 裡面可以依據IIS的環境設定，自動取得不同版本的環境設定檔 (appsettings.XXX.json )
+
+2. ######  因此，再設定IIS時，需要先定義這次執行的環境值
+
+   1. 關閉準備設定的IIS站台
+
+   2. ######  開啟IIS站台並點選設定編輯器
+
+      ![image-20210712141520635](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712141520635.png)
+
+   3. ###### 選擇“system.webServer/aspNetCore”
+
+      ![image-20210712141732394](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712141732394.png)
+
+   4. ###### 再找到“environmentVariable”项，點擊編輯項目
+
+      ![image-20210712141918893](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712141918893.png)
+
+   5. ###### 找到或新增 `ASPNETCORE_ENVIRONMENT` 環境變數，並給定變數值 (Production)。
+
+      - ###### 這邊的變數值根據你想要讀取的 `appsettings.XXX.json ` 填入 XXX
+
+      ![image-20210712142130492](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712142130492.png)
+
+   6. 完成後請點選套用並重啟IIS站台，確認該數值有正確存入
+
+      ![image-20210712142408836](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210712142408836.png)
+
+
+
+### PUT And Delete 權限
+
+- **HTTP 错误 405.0 - Method Not Allowed** - 出現此錯誤時請做以下調整
+- ![image-20210312153639993](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20210312153639993.png)
+
+### 確保排程持續啟動
+
+- 由於IIS會自動回收期限內沒有使用的**application pool**。因此長時間的排程(Quatz)會被自動關閉。
+
+  ![image-20200629162856867](https://raw.githubusercontent.com/Sean2416/Pic/master/img/image-20200629162856867.png)
+
+  
+
+- 因此，必須調整IIS的設定
+
+  1. ###### **Install the Application Initialization Module**
+
+     ![Install IIS application initialization module](https://i0.wp.com/www.taithienbo.com/wp-content/uploads/screenshots/IIS_Application_Initialization/Screen-Shot-2018-10-06-at-3.07.30-PM-1.png?ssl=1)
+
+     
+
+  2. **設定應用程式集區**
+
+     - Idle time-out(閒置愈時): 0代表永遠不會處於閒置狀態，因此不會被回收
+
+     - start mode to “Always Running” tells IIS to start a worker process for your application right away, without waiting for the initial request.
+
+       
+
+     ![img](https://i0.wp.com/www.taithienbo.com/wp-content/uploads/2018/10/IIS_AppPool_Settings_AlwaysRunning.png?ssl=1)
+
+     
+
+  3. **設定IIS網站**
+
+     ![Install IIS application initialization module](https://i2.wp.com/www.taithienbo.com/wp-content/uploads/screenshots/IIS_Application_Initialization/Screen-Shot-2018-10-06-at-4.22.39-PM-2.png?ssl=1)
 
 
 
