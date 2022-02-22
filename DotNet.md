@@ -1,5 +1,20 @@
 # Net 6
 
+## Windows  Command Prompt
+
+- 基本指令
+
+  - ```powershell
+    移動至指定目錄 >> cd /d 路徑位置
+    清除紀錄 >> cls
+    列出檔案內容 >> type  檔案名稱
+    找出檔案內指定文字>> Find "關鍵字" 檔案名稱
+    ```
+
+- 3
+
+
+
 ## CLI建置專案
 
 ### 新增套件
@@ -106,15 +121,16 @@
 
 
 
-### Hangfire
+## Hangfire
 
 1. CLI安裝
 
    - ```powershell
      Install-Package Abp.HangFire.AspNetCore -version 6.6.2
+     Install-Package Hangfire.AspNetCore(單純使用原生的好像也沒問題?)
      Install-Package Hangfire.SqlServer -version 1.7.25
      ```
-
+     
    - 第二個套件為指定hangfire紀錄存取位置(這邊指定SqlServer)
 
 2. 在 startup 中註冊 handfire
@@ -123,14 +139,13 @@
 
      - ```C#
        services.AddHangfire(config =>
-       {
-           config.UseSqlServerStorage(_appConfiguration.GetConnectionString("Default"));
+       {    		config.UseSqlServerStorage(_appConfiguration.GetConnectionString("Default"));
        }); 
        
        ```
-
+     
    - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202202121118598.png)
-
+   
 3.  在 configure 方法中加入
 
    - 將`UseHangfireServer` 提前至 ` app.UseAbp`前，就能在其他`Module`中註冊Hangfire排程。
@@ -153,11 +168,160 @@
 
 4. 最後，將 abp 預設的 background job manager 替換成 hangfire，這邊就根據你是用什麼專案模板，我是用前後端分離的，所以要替換的檔案就在 [ProjectName].Web.Core 專案中的 [ProjectName]WebCoreModule.cs 這隻檔案中
 
-5. [Abp 结成HangFire](https://www.cnblogs.com/tianxujun/p/15720646.html)
+### Storage
 
-5. [Hangfire Cron Expression](https://blog.csdn.net/long870294701/article/details/87983142)
+1. *永久儲存（Hangfire將後臺作業和其他與處理有關的資訊保留在永久性儲存器中，所以需要儲存庫來儲存如：MS SQL Server，Redis，MySQL，PostgreSql等）*
+
+2. MySQL
+
+   ```C#
+   Install-Package Hangfire.MySqlStorage //下載MySql 套件
+   ```
+
+   ```C#
+    public void ConfigureServices(IServiceCollection services)
+    {    
+       var connectionString = configuration["ConnectionStrings:Hangfire"];
+       config.UseStorage(new MySqlStorage(connectionString, 
+       new MySqlStorageOptions
+       {
+           QueuePollInterval = TimeSpan.FromSeconds(15), //- 作業佇列輪詢間隔。預設值為15秒。
+           JobExpirationCheckInterval = TimeSpan.FromHours(1), //過期作業檢查間隔,預設一小時
+           CountersAggregateInterval = TimeSpan.FromMinutes(5), //聚合計數器間隔,預設一小時
+           PrepareSchemaIfNecessary = true, //是否自動建置Hangire預設資料表,若為False且資料庫內沒有資料表。系統跳出錯誤
+           DashboardJobListLimit = 50000, //儀表板中作業限制,預設50000
+           TransactionTimeout = TimeSpan.FromMinutes(1), //資料庫交易超時,預設一分鐘
+           TablesPrefix = "Hangfire" //資料庫前墜字樣                       
+       }));     
+    }
+   ```
+
+3. SQL Server
+
+   ```C#
+   Install-Package Hangfire.SqlServer -version 1.7.25//下載MySql 套件
+   ```
+
+   ```C#
+    public void ConfigureServices(IServiceCollection services)
+    {
+       var connectionString = configuration["ConnectionStrings:Hangfire"];
+       config.UseSqlServerStorage(connectionString, new SqlServerStorageOptions
+       {
+           CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+           SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+           QueuePollInterval = TimeSpan.Zero,
+           UseRecommendedIsolationLevel = true,
+           DisableGlobalLocks = true // Migration to Schema 7 is required
+       });
+    }
+   ```
+
+4. Redis : 待補充
+
+   1. [Abp中使用Redis](https://blog.csdn.net/qq_39569480/article/details/107961516)
 
 
+### Queue
+
+- ###### Hangfire可以定義多個佇列，讓開發人員可以針對不同排程設定至不同柱列中
+
+- 設定方式如下:
+
+  1. 在Configure中預先定義佇列名稱，沒有定義的佇列將不會被執行
+
+     ```C#
+     public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
+      {
+          var jobServerOptions = new BackgroundJobServerOptions()
+     	{
+             Queues = new[] { "alpha", "beta", "default" }, //佇列名稱，可以多筆，預設 default
+         };
+     
+     	app.UseHangfireServer(jobServerOptions);     
+      }
+     ```
+
+  2. ###### 註冊排程時指定佇列名稱`queue參數`，可參考RecurringJobManager定義
+
+     ```C#
+     public static void AddOrUpdate<T>([NotNull] this IRecurringJobManager manager, [NotNull] string recurringJobId, [NotNull] Expression<Func<T, Task>> methodCall, [NotNull] string cronExpression, TimeZoneInfo timeZone = null, string queue = "default")
+     ```
+
+### 參數設定
+
+- ###### BackgroundJobServerOptions: 配置 Hangfire 服務的設定
+
+- 設定方式如下
+
+  - ```C#
+     public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
+     {
+         var jobServerOptions = new BackgroundJobServerOptions()
+      	    {
+                ServerName = "TestServer", //預設使用電腦名稱:ProcessID，例如：server1:9853，server1:4531，server2:6742
+                WorkerCount = 20, //執行緒使用數量，預設 20 
+                Queues = new[] { "alpha", "beta", "default" }, //佇列名稱，可以多筆，預設 default，如果你的任務想要用別的名稱，一開始就要宣告
+                CancellationCheckInterval = TimeSpan.FromSeconds(5), //任務取消檢查週期，預設 00:00:05 (5秒)
+                ServerTimeout = TimeSpan.FromMinutes(5),//服務逾時，預設 00:05:00 (5 分鐘)
+                ServerCheckInterval = TimeSpan.FromMinutes(5), //服務檢查週期，預設 00:05:00 (5 分鐘)
+                SchedulePollingInterval = TimeSpan.FromSeconds(15), //執行排程任務的輪詢週期，預設 00:00:15 (15秒)，每 15 秒執行一次任務
+                ShutdownTimeout = TimeSpan.FromSeconds(15), //關閉逾時，預設 00:00:15 (15秒)
+                StopTimeout = TimeSpan.FromSeconds(15), //停止逾時，預設 00:00:00
+            };
+      
+      		app.UseHangfireServer(jobServerOptions);     
+     }
+    ```
+
+### Cron Express
+
+- ###### 字段含意
+
+  |                      | 可用值                                                       |
+  | -------------------- | ------------------------------------------------------------ |
+  | 秒                   | **0****－59** ，’ **-** ’ , ’ * ’ , ’ **/** ’                |
+  | 分                   | **0****－59** ，’ **-** ’ , ’ * ’ , ’ **/** ’                |
+  | 時                   | **0 - 23**，’ **-** ’ , ’ * ’ , ’ **/** ’                    |
+  | **Day-of-Month**(天) | **1 - 31** ，’ **-** ’ , ’ * ’ , ’ **?** ’ , ’ **/** ’ , ’ **L** ’ , ’ **W** ’ , ’ **C** ’ |
+  | 月                   | 可以用 **0  - 11** ，或用字符串  “**JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP,  OCT, NOV , DEC**” ，或 ’ **-** ’ , ’ * ’ ,  ’ **/** ’ |
+  | **Day-of-Week**(周)  | **1 - 7** 表示（1 ＝ 星期日），或用字符口串“**SUN, MON, TUE, WED, THU, FRI , SAT**”，或 ’ **-** ’ , ’ * ’ , ’ **?** ’ , ’ **/** ’ , ’ **L** ’ , ’ **C** ’ , ’ **#** ’ |
+  | 年                   | **1970 - 2099** ，’ **-** ’ , ’ * ’ , ’ **/** ’              |
+
+- 字符含意
+
+  | 符號   | 意思                                                         | 限制                              | 範例                                                         |
+  | ------ | ------------------------------------------------------------ | --------------------------------- | ------------------------------------------------------------ |
+  | *      | 表示所有值                                                   |                                   | 如在Minutes使用, 表示每分钟都会觸發事件                      |
+  | ?      | 表示未說明的值，代表不須特別定義                             | 只能用在DayofMonth和DayofWeek域   | 例如想在每月的20日啟動排程，不管20日到底是星期幾，13 13 15 20 * ? |
+  | **-**  | 表示一個指定範圍                                             |                                   | 如在Minutes使用5-20，表示从5分到20分每分鐘觸發一次           |
+  | **，** | 表示列舉值                                                   |                                   | 在Minutes使用5,20，代表在5分和20分各觸發一次                 |
+  | /      | 符號前表示開始時間 /  符號後表示週期                         |                                   | 如“0/15”表示每隔15分鐘執行一次,“0”表示從“0”分開始,  “3/20”表示表示每隔20分鐘執行一次，“3”表示從第3分鐘开始 |
+  | **#**  | 表示這個月的第幾周的禮拜幾開始執行。  符號前表示禮拜幾,  符號後表示第幾周 | 只能用在day-of-week               | "6#3"指這個月第3三周的周五（6指周五，3指第3个）。如果指定的日期不存在則不會執行 |
+  | L      | 代表最後                                                     | 只能出现在DayofWeek和DayofMonth域 | 用在day-of-month意思是 “這個月最後一天”；  用在 day-of-week, 意思是這周最後一天代表禮拜六。  如果在day-of-week字段和數字一起使用，代表這個月的最后一個星期幾” – 例如： “6L” 意味"本月的最後一个星期五" |
+  | W      | 代表最接近指定日的工作日(周一到週五)，系統會在離指定日期最近的工作日啟動 | 只能出现在DayofMonth              | 在day-of-month字段用“15W”指“最接近這個月第15天的工作日”，  如果這個月第15天是周六，那么就會在這個月第14天即周五執行；如果月第15天是周日，那就會在這個月第 16天即周一触发；如果第15天是周二，那就在當天執行 |
+  | LW     | 表示在某月最後一個工作日                                     |                                   |                                                              |
+
+  
+
+- 範例
+
+  | */5 * * * * ?            | 每隔5秒執行一次                                              |
+  | ------------------------ | ------------------------------------------------------------ |
+  | 0 0 5-15 * * ?           | 每天5-15點整點執行                                           |
+  | 0 0/5 14,18 * * ?        | 每天下午兩點開始每五分鐘執行一次到55分和下午六點開始每五分鐘執行一次到55分 |
+  | 0 0 12 ? * WED           | 每個星期三12點執行                                           |
+  | 0 15 10 ? * 6L 2002-2005 | 2002年至2005年的每月的最後一个星期五上午10:15觸發            |
+  | 30 10 1 20 10 ? *        | 每年10月20號1點10分30秒                                      |
+  | 0 15 10 ? * MON-FRI      | 星期一到星期五的10點15分                                     |
+  | 0 15 10 LW * ?           | 每個月最後一個工作日10點15分觸發任务                         |
+
+### 參考
+
+- [.NET之Hangfire快速入門和使用](https://www.itread01.com/content/1569808862.html)
+- [Abp 结成HangFire](https://www.cnblogs.com/tianxujun/p/15720646.html)
+- [Hangfire Cron Expression](https://blog.csdn.net/long870294701/article/details/87983142)
+- 
 
 
 
