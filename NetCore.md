@@ -410,6 +410,163 @@ public class HomeController : Controller
 
 
 
+# Redis
+
+- CMD執行Redis
+
+  - ```
+    redis-cli.exe -h 127.0.0.1 -p 6379
+    ```
+
+- 设置键值对:
+
+```
+set myKey abc
+```
+
+- 取出键值对:
+
+```
+get myKey
+```
+
+## 資料類型
+
+- ###### String
+
+  - string 是 redis 最基本的类型，一个 key 对应一个 value。
+
+    string 类型是二进制安全的。意思是 redis 的 string 可以包含任何数据。比如jpg图片或者序列化的对象。
+
+    string 类型是 Redis 最基本的数据类型，string 类型的值最大能存储 512MB。
+
+  - ```
+    redis 127.0.0.1:6379> SET runoob "菜鸟教程"
+    OK
+    redis 127.0.0.1:6379> GET runoob
+    "菜鸟教程"
+    ```
+
+- ###### Hash
+
+- ###### List
+
+- 
+
+
+
+# 堆疊(Stack)
+
+- ###### 堆疊是限制插入元素和刪除元素只能在同一個位置的表(list)，該位置一般來說稱為棧頂(Top)。對堆疊的基本操作有 Push(推入，將資料加到棧頂) 和 Pop(彈出，將棧頂的資料移出) 這兩種操作。
+
+- ###### 堆疊有時候也會被稱為先進後出表(LIFO，Last In First Out)，最先進入的資料會最後被彈出，如同函式呼叫，最先呼叫的函式會最後彈出記憶體。
+
+- ###### 堆疊在軟體中是相當常見的應用，像是瀏覽器的上一頁就是一種應用，會按照你所存取的網頁，依照堆疊的順序進行存取(事實上，上一頁其實並非邏輯上的上一頁，如果現在在yahoo，上一頁是google，我們按下上一頁後會回到google，但再按上一頁事實上並不是回到yahoo...要不然就是死循環了...)
+
+- ###### Stack的pop跟push之時間複雜度皆為常數, 即**O(1)**, 不涉及複製和移動操作
+
+## Stack的基本操作:
+
+1. push: 塞東西到stack
+2. pop: 把最上面的東西彈出來
+3. peek: 只觀看最上面的東西, 不要彈出來
+
+## 實作方式
+
+- ###### 陣列實作
+
+  1. ###### 透過全域變數紀錄最後儲存的Index值，只要有Push 就Insert 進`arr[index++]`中
+
+  2. ###### PoP透過Index固定取得最後一個塞入的值 `arr[index--]`
+
+     ```C#
+     public class Stack {
+     
+         private int[] data;
+         private int top = -1; //陣列索引
+     
+         public Stack(int length) {
+             data = new int[length];
+         }
+     
+         public void push(int element) {
+             if (top < this.data.length - 1) {
+                 top++;
+                 this.data[top] = element;
+             }
+         }
+     
+         public int pop() {
+             return data[top--];
+         }
+     
+         public int peek() {
+             return data[top];
+         }
+     
+         public boolean isEmpty() {
+             return top == -1;
+         }
+     
+         public boolean isFull() {
+             return top == data.length - 1;
+         }
+     
+         public int size() {
+             return top + 1;
+         }
+     
+     }
+     ```
+
+     
+
+- ###### Linked list
+
+  
+
+# QUEUE
+
+- ###### Queue是一種特殊的線性表, 限定只能在表的一端進行插入(隊尾), 而在另一端進行刪除操作(隊頭), 特點是"先進先出"(FIFO).
+
+## Queue的基本操作:
+
+1. ###### insert:在隊尾插入資料
+
+2. ###### remove: 從隊頭移走資料
+
+3. ###### peek: 查看隊頭的資料
+
+## 陣列實作
+
+- ###### Insert: 透過index紀錄陣列最後的值，每次將資料存入最後一筆 `arr[rear++]`
+
+  - ###### 其實我們所進行的事情，就只是改變隊尾(rear = rear + 1)，沒有涉及到需要移動到整個陣列的操作，因此，時間複雜度為O(1)。就像是排隊一樣，來的人只要接在原來排隊人群的後面就可以了。
+
+- ###### POP: 透過front紀錄表頭位置，並且每次取出`arr[front]`並刪除後將陣列往前搬
+
+  - ###### 針對出隊(Dequeue)進行分析，出隊為將頭(front)元素移除的操作，就像是排隊一樣，排頭的人走了，那其餘的人就必須往前進一格，也因此出隊會涉及到整個陣列的移動，時間複雜度為O(N)
+
+    ![img](https://i.imgur.com/idLKa7f.png)
+
+- ###### 如果想要維持O(1)，可以透過不搬移陣列的方式僅刪除頭部元素即可。但這樣會造成假溢位問題
+
+  ![img](https://i.imgur.com/gOtSVFy.png)
+
+### 假溢出(False overflow)
+
+- ###### 如下圖所示，由於我們在Pop出前面的元素時沒有進行陣列的搬移。導致前面的空間浪費無法插入，此時可以透過`Circular Quee`
+
+- ![img](https://i.imgur.com/IQ16QUm.png)
+
+### Circular Queue
+
+- ###### 要解決假溢出的問題，其實我們只要將rear跑到陣列界線時，再往下走一格會回到陣列的頭就可以解決了，也就是使陣列的頭尾相接，這種陣列我們稱之為循環陣列(circular array)。
+
+- ![img](https://i.imgur.com/q7rI6ZC.png)
+
+
+
 
 
 # Swagger
