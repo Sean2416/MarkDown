@@ -410,6 +410,72 @@ public class HomeController : Controller
 
 
 
+# Attribute
+
+- ###### Attribute 提供一個有用的方法，使中繼資料 (或宣告式資訊) 與程式碼 (組件、型別、方法和屬性 (Property) 等) 產生關聯。 當屬性 (Attribute) 與程式實體 (Entity) 產生關聯之後，即可在執行階段使用稱為「反映」(Reflection) 的技術來加以查詢。
+
+- ###### 透過Attribute定義Enum或類別描述，可透過Reflection取得
+
+  - ###### 定義一個客製化Attribute，並設定`Description`屬性
+
+    - ```C#
+      public class ReportDescriptionAttribute : Attribute
+      {
+          public string Description { get; set; }
+      
+          public ReportDescriptionAttribute(string Description)
+          {
+              this.Description = Description;
+          }
+      
+          public override string ToString()
+          {
+              return this.Description.ToString();
+          }
+      }
+      ```
+
+  - ###### 針對類別內的各屬性加入`Attribute`描述
+
+    - ```C#
+      public class SNCode
+      {
+          /// <summary>
+          /// 里程碑主檔
+          /// </summary>
+          [ReportDescription("里程碑主檔")]
+          public const string Milestone = "Milestone_SN";
+      
+          /// <summary>
+          /// 里程碑產出檔案
+          /// </summary>
+          [ReportDescription("里程碑產出檔案")]
+          public const string MilestoneProd = "Milestone_Prod_SN";
+      
+          /// <summary>
+          /// 專案風險檔
+          /// </summary>
+          [ReportDescription("專案風險檔")]
+          public const string ProjectRisk = "Project_Risk_SN";
+      
+          /// <summary>
+          /// 專案風險檔
+          /// </summary>
+          [ReportDescription("專案風險檔")]
+          public const string ProjectMeasure = "Project_Measure_SN";
+      }
+      ```
+
+  - ###### 透過Reflection取得內容
+
+    - ```c#
+      var members = typeof(SNCode).GetMember("MilestoneProd");
+      var attributes = members[0].GetCustomAttributes(typeof(ReportDescriptionAttribute), false);
+      var description = ((ReportDescriptionAttribute)attributes[0]).Description;
+      ```
+
+      
+
 # Redis
 
 - CMD執行Redis
