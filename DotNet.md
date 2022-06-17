@@ -38,6 +38,237 @@
 
 
 
+# Message Queue
+
+## Application Intergration
+
+- ###### 一個系統中，一般不會只有一隻程式在運作，而是會有多隻程式同時負責各種不同的任務，而程式之間難免會有互相傳遞資料進行處理的需求，而這類的需求，以下都統稱為 applcation 的整合。
+
+- ##### 常見的 Application Intergration 方式又分為以下幾種：
+
+  - ###### File Based Intergration
+
+    - ###### source application 根據要處理的任務，產生檔案到特定的路徑，其中任務成功或失敗可以存放到不同 folder 中。而其他接收訊息的 application(或稱 process application) 則是不停監控該路徑有沒有新檔案產生，有則取出檔案進行處理。
+
+    - ![img](https://miro.medium.com/max/1400/1*t9FX6FQKmeTjsRt7hx97NA.png)
+
+  - ###### Shared Database Intergration
+
+    - ###### 與File Based差不多，差別在資料儲存於DB
+
+    - ![img](https://miro.medium.com/max/1400/1*IOI9Z8zymQl5RbVB-2rXEw.png)
+
+  - ###### Direct Connection Intergration
+
+    - ###### source application 直接傳訊息給 process application
+
+    - ###### 可能透過 TCP/IP 或是 named pipe connection 的方式傳遞資料
+
+    - ###### 傳遞資訊的資料格式並沒有限制，由連線兩端的 application 自訂，可以是純文字、XML 或 JSON。
+
+    - ![img](https://miro.medium.com/max/1400/1*AQ5aLr5OTR0_tpthiq2EGA.png)
+
+  - ###### Asynchronous Message Broker
+
+    - ##### 特性：
+
+      - ###### 不限傳遞資料格式
+
+      - ###### 需要額外 message queue middleware 協助，也會被稱作 message broker 或 message bus
+
+      - ###### message broker 收到來自 source application 的訊息後，會轉發給 process application，而在這個方式中，source application 與 process application 通常又各自被稱為 producer 與 consumer。
+
+    - ![img](https://miro.medium.com/max/1400/1*62CxFz1kTKLixkDqr9qtAw.png)
+
+## 訊息佇列
+
+- ##### 從字面意思上看，本質是個佇列，FIFO先入先出，只不過佇列中存放的內容是message。
+
+- ##### 其主要用途：
+
+  - ##### 不同程序 Process 之間
+
+  - ##### 不同執行緒 Thread 之間
+
+  - ##### 不同服務之間 (Microservice)
+
+- ##### 架構由 
+
+  - ##### Producers 負責創建訊息並傳遞訊息至 Message Queue
+
+  - ##### Consumers 負責從 queue 中取出訊息並執行對應的行為。存放在 queue 中的 Message 會在被 Consumers 接收後才會移除。
+
+- ##### 優勢
+
+  - ###### Better performance
+
+    - 非同步處理，Producers拋出訊息後不需要等待回應。
+    - consumer 有空時才會處理 message
+    - 比起持續 polling 的方式相對有效率(輪詢: 接收端定時查看Producers 狀態決定是否進行下一步，如上述File Based Intergration ,Shared Database Intergration)
+
+  - ###### 解耦
+
+    - 將 publisher 與 consumer 進行 decouple ，程式開發人員可以各自專心負責規模較小 & 單純的程式開發工作
+    - publisher 與 consumer 不需要知道雙方的實際的位置(例如：IP address)，只要將資料往 message queue 送就好
+    - Break up apps & migrate to microservice
+
+  - ###### Reliablity
+
+    - queue 使 data 不易丟失
+    - 即使 consumer 短暫的無法提供服務也沒關係，message queue 可以將資料暫存起來，等待 consumer 重新上線時再送過去
+
+  - ###### Flexiability of scaling
+
+    - producer, queue, consumer 可以依照需求擴張或縮減
+
+- ##### Eaxmple
+
+  - 假設你擁有一個 web service，每秒需要接受大量 request，request 不能被丟失，但 request 又要經過一個大量運算的 function 才能得到 response….
+    - ![img](https://miro.medium.com/max/1400/1*ygPEYxQY-PQiaMPQ8cQ5lA.png)
+
+## RabbitMQ 
+
+- ![img](https://miro.medium.com/max/1400/1*PAJJlbfy78PrFSnwYjCnlw.png)
+
+- ##### 元件屬性:
+
+  - ###### Producer
+
+    - 負責丟訊息到 Queue 中，若有定義 Exchange，則丟給 Exchange 決定要給誰。
+
+  - ###### Consumer
+
+    - 負責接收來自 Queue 的訊息。
+
+  - ###### Queue
+
+    - 負責存放所需要的資料，跟資料結構的 Queue 一樣，有先進先出 (FIFO) 特性，每個 Queue 都會有他的名字當 id。
+
+  - ###### Channel
+
+    - Channel是建立在Connection上的一個虛擬通訊管道。一般情況下，往訊息佇列中寫入多條訊息，為了不每條訊息都建立一個TCP連線，所以RabbitMQ的做法是多條訊息可以公用一個Connection，大大提高MQ的負載能力。
+
+  - ###### Exchange
+
+    - ![RabbitMQ Exchange](https://godleon.github.io/blog/images/middleware/message-queue_concept-binding.png)
+    - Exchange 是 RabbitMQ 系統中負責轉發訊息的元件， Producer 無法將訊息直接傳到 Queue 中，在 RabbitMQ 中訊息的第一個進入點是 Exchange
+    - 實際儲存訊息的 Queue 會根據使用者的設定，與不同的 Exchange 進行綁定
+    - 當 Exchange 收到訊息後，就會轉發到與其綁定的 Queue (可能 0 到多個不等)
+    - Exchange 僅能將訊息轉發到與其綁定的 Queue 上
+    - 至少會有一個預設 Exchange 存在於 RabbitMQ 系統中，稱為 **default exchange**，轉發的模式為 `direct`；每個新建立的 Queue，若是沒指定 exchane 資訊，就會與預設的綁定
+    - Exchange 有四種轉發模式
+      - Direct: 直接丟給指定的 Queue。
+      - Topic: 類似 regular expression，設定 binding 規則，丟給符合的 Queue。
+      - Headers: 透過傳送資料的 header 來特別指定所要的 Queue。
+      - Fanout: 一次丟給全部負責的 Queue。
+
+- ##### 官網使用情境說明
+
+  - ###### Task Queue
+
+    - ![img](https://miro.medium.com/max/1196/1*B3q0g4uPCTMY5H0kWlvGLg.png)
+    - 不透過 Exchange 直接送到指定的 Queue
+
+  - ###### Publish/Subscribe
+
+    - 透過 Exchange 的 fanout 特性，達到訂閱 Queue 的 Consumer 都可以收到訊息。
+    - ![img](https://miro.medium.com/max/1128/1*YNKahFDsg2sbaIG-k31SKQ.png)
+
+  - ###### Routing
+
+    - 透過 Exchange 的 direct 特性，達到類似 routing 的功能，將訊息 filter 到特定的 Queue。
+    - ![img](https://miro.medium.com/max/1400/1*6lw6dx5h-p4ZBDC5SJGsdg.png)
+
+  - ###### Topics
+
+    - 透過 Exchange 的 topic 特性，每個 Queue 都有屬於自己的分類。
+    - ![img](https://miro.medium.com/max/1400/1*_5vbFy2NODg-atHLiC7fRg.png)
+
+  - ###### RPC
+
+    - 如果需要回傳訊息的話則需要透過 RPC
+
+  - ![img](https://miro.medium.com/max/1400/1*rFE7XPQ7_iCkK7LkjCLEvA.png)
+
+- ##### Message 屬性
+
+  - ![img](https://miro.medium.com/max/1400/1*cWUB5yWOeIykQyWcex8ijg.png)
+
+- ##### Queue 屬性
+
+  - ![img](https://miro.medium.com/max/1400/1*-TqB4L1eBEaGdl4VpLz3VA.png)
+
+- ##### Exchange 屬性
+
+  - ![img](https://miro.medium.com/max/1400/1*3_cbKqwgXrPrlUf3CMl06A.png)
+
+### Net Core Example
+
+- ##### 安裝MQ
+
+  - ###### 安裝Rabbit時需要同時安裝erlang語言執行環境、RabbitMQ
+
+  - ###### 可以直接透過`Chocolatey` 同步安裝 erlang、MQ
+
+    - `choco install rabbitmq`
+
+- ##### Net Core
+
+  - ###### 安裝套件 `RabbitMQ.Client`
+
+  - ###### 建立Producer
+
+    - ```C#
+      const string QUEUENAME = "Tesrt2";
+                  //建立連線物件工廠
+                  var factory = new ConnectionFactory()
+                  {
+                      UserName = "admin",
+                      Password = "admin",
+                      HostName = "localhost",
+                      Port = 5672,  //RabbitMQ預設的埠
+                  };
+      
+                  while (true)
+                  {
+                      using var conn = factory.CreateConnection();
+                      var chanel = conn.CreateModel();
+      
+                      chanel.QueueDeclare(QUEUENAME, true, false, false);
+                      chanel.BasicPublish("", QUEUENAME, null, Encoding.Default.GetBytes("hello rabbitmq:"));
+                  }
+      ```
+
+  - ###### 建立Consumer
+
+    - ```C#
+      const string QUEUENAME = "Tesrt2";
+      var factory = new ConnectionFactory()
+      {
+          UserName = "admin",
+          Password = "admin",
+          HostName = "localhost",
+          Port = 5672,
+      };
+      
+      var conn = factory.CreateConnection();
+      var chanel = conn.CreateModel();
+      chanel.QueueDeclare(QUEUENAME, true, false, false);
+      EventingBasicConsumer consumer = new EventingBasicConsumer(chanel);
+      
+      //持續監聽QUEUE的內容，若有更新會持續接收直到關閉
+      consumer.Received += (a, e) =>
+      {
+          Console.WriteLine($"{DateTime.Now.ToString()}接收到訊息:" + Encoding.Default.GetString(e.Body.ToArray()));
+          chanel.BasicAck(e.DeliveryTag, true); //收到回覆後，RabbitMQ會直接在佇列中刪除這條訊息
+      };
+      chanel.BasicConsume(QUEUENAME, false, consumer);
+      ```
+
+      
+
+
+
 # Dependency Injection
 
 - ## 依賴反轉原則(Dependency-Inversion Principle)
