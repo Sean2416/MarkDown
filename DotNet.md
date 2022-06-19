@@ -1,4 +1,6 @@
-# Process 
+# 基本知識
+
+## Process 
 
 - ###### 行程，亦可稱作處理程序、進程
 
@@ -24,7 +26,7 @@
 
 
 
-# Thread
+## Thread
 
 - ###### 同一個 Process 中會有很多個 Thread，每一個 Thread 負責某一項功能。以聊天室 Process 為例，可以同時接受對方傳來的訊息以及發送自己的訊息給對方，就是同個 Process 中不同 Thread 的功勞。Thread 就是實體工廠內的工人，確保工廠的每項功能，並且共享工廠內的每一項資源。
 
@@ -36,9 +38,19 @@
 
 - ###### 多執行緒中 (Multithreading)，兩個執行緒若同時存取或改變全域變數 (Global Variable)，可能會發生同步 (*Synchronization*) 問題。若執行緒之間互搶資源，則可能產生死結 (*Deadlock*)，如何避免 (*Prevent*) 或預防 (*Avoid*) 上述兩種情況的發生，仍是作業系統 (OS) 所關注的。
 
+## Stack
+
+## Queue
+
+## Hash
+
+## Sort
 
 
-# SOLID
+
+# 設計模式
+
+## SOLID
 
 - ###### 單一職責原則(Single responsibility principle, SRP)
 
@@ -96,9 +108,11 @@
 
 
 
-# Message Queue
+# Application
 
-## Application Intergration
+## Message Queue
+
+### Application Intergration
 
 - ###### 一個系統中，一般不會只有一隻程式在運作，而是會有多隻程式同時負責各種不同的任務，而程式之間難免會有互相傳遞資料進行處理的需求，而這類的需求，以下都統稱為 applcation 的整合。
 
@@ -138,7 +152,7 @@
 
     - ![img](https://miro.medium.com/max/1400/1*62CxFz1kTKLixkDqr9qtAw.png)
 
-## 訊息佇列
+### 訊息佇列
 
 - ##### 從字面意思上看，本質是個佇列，FIFO先入先出，只不過佇列中存放的內容是message。
 
@@ -184,7 +198,7 @@
   - 假設你擁有一個 web service，每秒需要接受大量 request，request 不能被丟失，但 request 又要經過一個大量運算的 function 才能得到 response….
     - ![img](https://miro.medium.com/max/1400/1*ygPEYxQY-PQiaMPQ8cQ5lA.png)
 
-## RabbitMQ 
+### RabbitMQ 
 
 - ![img](https://miro.medium.com/max/1400/1*PAJJlbfy78PrFSnwYjCnlw.png)
 
@@ -260,7 +274,7 @@
 
   - ![img](https://miro.medium.com/max/1400/1*3_cbKqwgXrPrlUf3CMl06A.png)
 
-### Net Core Example
+#### Net Core Example
 
 - ##### 安裝MQ
 
@@ -323,13 +337,111 @@
       chanel.BasicConsume(QUEUENAME, false, consumer);
       ```
 
-      
 
 
 
-# Dependency Injection
+## Redis
 
-- ## 依賴反轉原則(Dependency-Inversion Principle)
+- ##### 高效能的 key-value 資料庫，因為Redis可以儲存不同型態的資料(也可以透過plugins)，因此可以減少使用不同儲存體(DB、File Base、Cache)
+
+  - ###### 減少不同儲存體之間的溝通，進而減少溝通間的時間成本。加快執行速度
+
+  - ###### 方便維護、擴展
+
+- ##### 特點：
+
+  - ###### 支援資料的持久化，可以將記憶體中的資料儲存在磁碟中，重啟的時候可以再次載入進行使用
+
+  - ###### 不僅僅支援簡單的key-value型別的資料，同時還提供list，set，zset，hash等資料結構的儲存。
+
+  - ###### 支援資料的備份，即master-slave模式的資料備份。
+
+- ##### 優勢
+
+  - ###### Redis 是 **persistent** storage，**全部資料**存在記憶體內，所以資料大小上限受限於記憶體。資料會週期性備份到硬碟上 (RDB) 或是將所有更新寫入 append-only logs (AOF)。因此可以提供最快的操作
+
+  - ###### 預設資料**不會 expire**。可以用 [expire](https://redis.io/commands/expire) 指定 expire 時間。預設是記憶滿了就不能寫入資料，設定 [LRU](https://redis.io/topics/lru-cache) 的模式可以決定是只刪有設 expire 的 keys 或是都刪。例如 `volatile-ttl` 會照 TTL 優先刪掉 TTL 最小的 key 且只會刪有設 expire 的 keys。
+
+  - ###### 供多種常用資料結構如 [sorted set](https://redis.io/commands#sorted_set)、hash、geospatial、publish/subscribe events。可裝 plugin 使用其它資料結構。
+
+  - ###### 主程式在單一 thread 執行，不用擔心 race conditions。但要留意執行太慢的操作會卡住整個系統
+
+    - ###### race conditions: 兩個不同的程序同時對同一個資源進行修改，導致錯誤
+
+  - ###### 因為記憶體操作超快，減少呼叫 Redis 的次數是效率關鍵。
+
+- ##### 與Memory Cache比較
+
+  - ###### Memcached 用 multi-thread 處理請求，Redis 只有 main thread。
+
+  - ###### Memcached 只支援簡單的資料型別。
+
+    - 如果只需要簡單的資料型別，memcached 較能善用 CPU。
+
+### 安裝
+
+-  使用Chocolate `choco install redis`
+
+-  測試redis是否正常啟用
+
+  - ```powershell
+    > redis-cli ping
+    PONG
+    ```
+
+- 停止redis 服務`redis-server --service-start`
+
+- 啟用redis 服務`redis-server --service-stop`
+
+- 新增測試值
+
+  - ```powershell
+    > redis-cli set Test "hello world"
+    OK
+    ```
+
+- 查詢資料
+
+  - ```powershell
+    > redis-cli get Test
+    "hello world"
+    ```
+
+- ##### 圖形化使用者管理介面
+
+  -  [Redis Desktop Manager](https://github.com/uglide/RedisDesktopManager/releases/tag/0.8.8)
+
+### NET Core Example
+
+- 安裝套件 `StackExchange.Redis`
+
+- 連線Redis
+
+  - ```C#
+    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("127.0.0.1:6379,allowAdmin=true"));
+    ```
+
+- 新增資料
+
+  - `db.StringSet("Test", value, TimeSpan.FromSeconds(300));`	
+
+- 取得資料
+
+  - ` db.StringGet("Test");`
+
+### 參考
+
+- [ASP.NET Core 註冊 StackExchange.Redis 的方式](https://blog.yowko.com/stackexchange-redis-in-aspdotnet-core/)
+
+
+
+
+
+# .NET
+
+## Dependency Injection
+
+- ### 依賴反轉原則(Dependency-Inversion Principle)
 
   - ###### 高階模組不應該依賴於低階模組。
 
@@ -339,7 +451,7 @@
 
   - ###### 抽象不應該依賴細節；細節應該依賴抽象。
 
-- ## 控制反轉 (Inversion of Control, IoC)
+- ### 控制反轉 (Inversion of Control, IoC)
 
   - ###### 把實例的建立和實例的使用切分開來，不再是由高階模組去建立並控制低階模組，而是我們讓一個控制反轉中心去建立低階模組，然後高階模組要使用的時候再把這個低階模組交給高階模組使用。
 
@@ -445,7 +557,7 @@
   }
   ```
 
-## lifetimes
+### lifetimes
 
 - **Transient**: 每次注入時，都重新 `new` 一個新的實例。
 - **Scoped**: 每個 **Request** 都重新 `new` 一個新的實例，同一個 **Request** 不管經過多少個 Pipeline 都是用同一個實例。上例所使用的就是 **Scoped**。
@@ -453,7 +565,7 @@
 
 ![[鐵人賽 Day04] ASP.NET Core 2 系列 - 依賴注入(Dependency Injection) - 實例產生動畫](https://blog.johnwu.cc/images/pasted-209.gif)
 
-## View
+### View
 
 - View 注入 Service 的方式，直接在 `*.cshtml` 使用 `@inject`：
 
@@ -481,7 +593,7 @@
   </table>
   ```
 
-## Service
+### Service
 
 ```C#
 public class CustomService
@@ -503,7 +615,7 @@ public class CustomService
 
 
 
-# Middleware
+## Middleware
 
 - SP.NET Core 在 Middleware 的官方說明中，使用了 Pipeline 這個名詞，意旨 Middleware 像水管一樣可以串聯在一起，所有的 Request 及 Response 都會層層經過這些水管。
 
@@ -511,7 +623,7 @@ public class CustomService
 
   ![[鐵人賽 Day03] ASP.NET Core 2 系列 - Middleware](https://blog.johnwu.cc/images/pasted-114.gif)
 
-## App.Use
+### App.Use
 
 - Middleware 的註冊方式是在 *Startup.cs* 的 `Configure` 對 `IApplicationBuilder` 使用 `Use` 方法註冊。
   大部分擴充的 Middleware 也都是以 **Use** 開頭的方法註冊，例如：
@@ -561,11 +673,11 @@ First Middleware out.
 */
 ```
 
-## App.Run
+### App.Run
 
 - `Run` 是 Middleware 的最後一個行為，以上面圖例來說，就是最末端的 Action。它不像 `Use` 能串聯其他 Middleware，但 `Run` 還是能完整的使用 Request 及 Response。
 
-## App.Map
+### App.Map
 
 - `Map` 是能用來處理一些簡單路由的 Middleware，可依照不同的 URL 指向不同的 `Run` 及註冊不同的 `Use`。
 
@@ -621,7 +733,7 @@ https://localhost:5001/second
 
 
 
-## Extract Middleware
+### Extract Middleware
 
 - 新增類別檔，將各Middleware獨立出來
 
@@ -647,7 +759,7 @@ public class FirstMiddleware
 }
 ```
 
-### 全域註冊
+#### 全域註冊
 
 - 在 `Startup.Configure` 註冊 Middleware 就可以套用到所有的 Request。如下：
 
@@ -663,7 +775,7 @@ public class Startup
 }
 ```
 
-### 區域註冊
+#### 區域註冊
 
 - Middleware 也可以只套用在特定的 Controller 或 Action。註冊方式如下：
 
@@ -681,7 +793,7 @@ public class HomeController : Controller
 }
 ```
 
-### Extensions
+#### Extensions
 
 - 建立IApplicationBuilder Extension Method
 
@@ -712,7 +824,7 @@ public class HomeController : Controller
 
 
 
-# appsettings.json
+## appsettings.json
 
 1. 若執行環境為 *Production* ，只讀 *appsettings.json* 。
 
@@ -725,7 +837,7 @@ public class HomeController : Controller
 
 
 
-# Attribute
+## Attribute
 
 - ###### Attribute 提供一個有用的方法，使中繼資料 (或宣告式資訊) 與程式碼 (組件、型別、方法和屬性 (Property) 等) 產生關聯。 當屬性 (Attribute) 與程式實體 (Entity) 產生關聯之後，即可在執行階段使用稱為「反映」(Reflection) 的技術來加以查詢。
 
