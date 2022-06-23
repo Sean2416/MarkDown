@@ -44,7 +44,147 @@
 
 ## Hash
 
+
+
 ## Sort
+
+###  Bubble Sort
+
+- ###### 又稱`交換`排序法，顧名思故就是與`相鄰`的資料`兩兩比較`，如果數字較大者在前面，則需交換位置到後面，這樣一來可確保，數字最大者會排在最後面
+
+- ![https://ithelp.ithome.com.tw/upload/images/20201003/20129841rCEYFJhmaM.png](https://ithelp.ithome.com.tw/upload/images/20201003/20129841rCEYFJhmaM.png)
+
+- ### 時間複雜度
+
+  - 最壞的情況
+    資料是反序排序，如上述例子 ![https://chart.googleapis.com/chart?cht=tx&chl=O(n%5E2)](https://chart.googleapis.com/chart?cht=tx&chl=O(n%5E2))最好的情況
+    資料原先就已經排列好，則只需做 n-1 次的比較，發現沒有交換情況，時間為 O(n)
+
+### Selection Sort
+
+- ###### 給定陣列N，從元素0開始每次與最小值互換位置
+
+- ![https://ithelp.ithome.com.tw/upload/images/20201003/20129841CFBMlzn4Wc.png](https://ithelp.ithome.com.tw/upload/images/20201003/20129841CFBMlzn4Wc.png)
+
+- ###### 複雜度: ![https://chart.googleapis.com/chart?cht=tx&chl=O(n%5E2)](https://chart.googleapis.com/chart?cht=tx&chl=O(n%5E2))
+
+### Insertion sort
+
+- 給定未排序陣列{ ![https://chart.googleapis.com/chart?cht=tx&chl=a_1%2Ca_2%2C...%2Ca_n](https://chart.googleapis.com/chart?cht=tx&chl=a_1%2Ca_2%2C...%2Ca_n) },每次都跟前面的陣列進行比較
+
+  - 若現有值比前面陣列小，則將前面陣列往後移動
+
+  - 一直到出現第一個比現有值小的元素，則現有值插入再該元素+1位置
+
+  - ![img](https://www.runoob.com/wp-content/uploads/2019/03/insertionSort.gif)
+
+  - ```c#
+    public static void InsertSort(int[] array)
+    {
+        for(int i = 1;i < array.length;i++)
+        {
+            int temp = array[i];
+            for(int j = i - 1;j >= 0;j--)
+            {
+                if(array[j] > temp)
+                {
+                    array[j + 1] = array[j];
+                    array[j] = temp;
+                }
+                else
+                    break;
+            }
+        }
+    }
+    ```
+
+  - #### 複雜度
+
+    | 項目           | 值    | 備註                       |
+    | -------------- | ----- | -------------------------- |
+    | 最差時間複雜度 | O(n2) | 排序已經反向排序過的序列。 |
+    | 最佳時間複雜度 | O(n)  | 排序已經正向排序過的序列。 |
+    | 平均時間複雜度 | O(n2) |                            |
+    | 最差空間複雜度 | O(1)  |                            |
+
+### 分治法(Divide-and-Conquer)
+
+有許多演算法使用了遞迴的結構進行設計 : 為了解決一個問題，將問題拆分後經過多次遞迴解決問題的子問題，最終合併結果並解決問題。這種演算法就是分治法的想法。分治法在每一層的遞迴會有三個步驟:
+
+- 分解(Divide) : 將原問題分解成許多個子問題，每一個子問題都是原問題規模較小的實例。
+- 解決(Conquer) : 遞迴的方式去求解各子問題，當子問題的規模夠小時，則直接求解。
+- 合併(Combine) : 將子問題的解合併成原問題的解。
+
+### Quick Sort
+
+- ###### `快速排序法`採用分而治之法(Divide-and-conquer)，把`大問題切割成小問題`，會於資料中找到一個`基準值(Pivot)`，並將資料逐一與這個值相比較，最後可以得到兩個部分，分別為`大於這個值`與`小於這個值`的數值，大於基準值的數值放在`右邊`，小於基準值的數值放`左邊`，`基準值`就很像是我們使用的`篩子`，篩完之後物品就會被`區分`成兩塊
+
+### 合併排序法(merge sort)
+
+- ##### 合併排序法(merge sort)就是一種由分治法實現的演算法，直觀上也是符合分治法的三個步驟
+
+  - ##### 分解(Divide) : 分解待排序長度為![https://chart.googleapis.com/chart?cht=tx&chl=n](https://chart.googleapis.com/chart?cht=tx&chl=n)的陣列，變成長度為![https://chart.googleapis.com/chart?cht=tx&chl=n%2F2](https://chart.googleapis.com/chart?cht=tx&chl=n%2F2)長度的兩個子陣列。
+
+  - ##### 解決(Conquer) : 使用合併排序法遞迴的排序兩個子陣列。
+
+  - ##### 合併(Combine) : 合併兩個已經排序的子陣列產生出已經完成排序的原陣列。
+
+- ![img](https://www.runoob.com/wp-content/uploads/2019/03/mergeSort.gif)
+
+- ```C#
+  public static List<int> sort(List<int> lst) {
+      if (lst.Count <= 1)
+          return lst;
+      int mid = lst.Count / 2;
+      List<int> left = new List<int>();  // 定义左侧List
+      List<int> right = new List<int>(); // 定义右侧List
+      // 以下兩個循環把 lst 分為左右兩個 List
+      for (int i = 0; i < mid; i++)
+          left.Add(lst[i]);
+      for (int j = mid; j < lst.Count; j++)
+          right.Add(lst[j]);
+      left = sort(left);
+      right = sort(right);
+      return merge(left, right);
+  }
+  /// <summary>
+  /// 合併兩個已經排好序的List
+  /// </summary>
+  /// <param name="left">左側List</param>
+  /// <param name="right">右側List</param>
+  /// <returns></returns>
+  static List<int> merge(List<int> left, List<int> right) {
+      List<int> temp = new List<int>();
+      while (left.Count > 0 && right.Count > 0) {
+          if (left[0] <= right[0]) {
+              temp.Add(left[0]);
+              left.RemoveAt(0);
+          } else {
+              temp.Add(right[0]);
+              right.RemoveAt(0);
+          }
+      }
+      if (left.Count > 0) {
+          for (int i = 0; i < left.Count; i++)
+              temp.Add(left[i]);
+      }
+      if (right.Count > 0) {
+          for (int i = 0; i < right.Count; i++)
+              temp.Add(right[i]);
+      }
+      return temp;
+  }
+  ```
+
+- #### 合併排序法的複雜度
+
+  | 項目           | 值       | 備註 |
+  | -------------- | -------- | ---- |
+  | 最差時間複雜度 | O(nlog⁡n) |      |
+  | 最佳時間複雜度 | O(nlog⁡n) |      |
+  | 平均時間複雜度 | O(nlog⁡n) |      |
+  | 最差空間複雜度 | O(n)     |      |
+  | 是否穩定       | 是       |      |
 
 
 
