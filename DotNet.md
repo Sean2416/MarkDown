@@ -40,7 +40,172 @@
 
 ## Stack
 
+- ###### 疊是限制插入元素和刪除元素只能在同一個位置的表(list)，該位置一般來說稱為棧頂(Top)。對堆疊的基本操作有 Push(推入，將資料加到棧頂) 和 Pop(彈出，將棧頂的資料移出) 這兩種操作。
+
+- ###### 堆疊有時候也會被稱為先進後出表(LIFO，Last In First Out)，最先進入的資料會最後被彈出，如同函式呼叫，最先呼叫的函式會最後彈出記憶體。
+
+- ###### 堆疊在軟體中是相當常見的應用，像是瀏覽器的上一頁就是一種應用，會按照你所存取的網頁，依照堆疊的順序進行存取(事實上，上一頁其實並非邏輯上的上一頁，如果現在在yahoo，上一頁是google，我們按下上一頁後會回到google，但再按上一頁事實上並不是回到yahoo...要不然就是死循環了...)
+
+- ###### Stack的pop跟push之時間複雜度皆為常數, 即**O(1)**, 不涉及複製和移動操作
+
+### 基本操作:
+
+1. ##### push: 塞東西到stack
+
+2. ##### pop: 把最上面的東西彈出來
+
+3. ##### peek: 只觀看最上面的東西, 不要彈出來
+
+### 實作方式
+
+- ###### 陣列實作
+
+  1. ###### 透過全域變數紀錄最後儲存的Index值，只要有Push 就Insert 進`arr[index++]`中
+
+  2. ###### PoP透過Index固定取得最後一個塞入的值 `arr[index--]`
+
+     ```C#
+     public class Stack {
+     
+         private int[] data;
+         private int top = -1; //陣列索引
+     
+         public Stack(int length) {
+             data = new int[length];
+         }
+     
+         public void push(int element) {
+             if (top < this.data.length - 1) {
+                 top++;
+                 this.data[top] = element;
+             }
+         }
+     
+         public int pop() {
+             return data[top--];
+         }
+     
+         public int peek() {
+             return data[top];
+         }
+     
+         public boolean isEmpty() {
+             return top == -1;
+         }
+     
+         public boolean isFull() {
+             return top == data.length - 1;
+         }
+     
+         public int size() {
+             return top + 1;
+         }
+     
+     }
+     ```
+
+
+### Implement Stack using Queues
+
+- ##### 本題僅可使用 Queue 資料結構作為來源 ，而在 Queue 當中有兩種標準定義的方法：
+
+  - ###### shift：取出最左邊（最早被加入）的元素
+
+  - ###### push：新加入的元素會邊加入到最右邊
+
+- ##### 作法
+
+  - ##### 使用兩個Queue(queue1、queue2)
+
+  - ##### Push:
+
+    - ###### 檢視queue1或queue2中哪個陣列有值,將資料存放該陣列中，並插入再最右邊
+
+    - ###### 若皆為空則存放於queue1
+
+  - ##### Pop:
+
+    - ###### 依循Queue結構定義每次Pop都會從最左邊元素取出
+
+      1. ###### 檢視queue1或queue2中哪個陣列有值，將該陣列資料由左至右取出存放於另一個queue中，直到剩下最後一個元素
+
+      2. ###### 最後一個元素即為pop的結果(LIFO)
+
 ## Queue
+
+- ###### Queue是一種特殊的線性表, 限定只能在表的一端進行插入(隊尾), 而在另一端進行刪除操作(隊頭), 特點是"先進先出"(FIFO).
+
+### 基本操作:
+
+1. ###### insert:在隊尾插入資料
+
+2. ###### remove: 從隊頭移走資料
+
+3. ###### peek: 查看隊頭的資料
+
+### 陣列實作
+
+- ###### Insert: 透過index紀錄陣列最後的值，每次將資料存入最後一筆 `arr[rear++]`
+
+  - ###### 其實我們所進行的事情，就只是改變隊尾(rear = rear + 1)，沒有涉及到需要移動到整個陣列的操作，因此，時間複雜度為O(1)。就像是排隊一樣，來的人只要接在原來排隊人群的後面就可以了。
+
+- ###### POP: 透過front紀錄表頭位置，並且每次取出`arr[front]`並刪除後將陣列往前搬
+
+  - ###### 針對出隊(Dequeue)進行分析，出隊為將頭(front)元素移除的操作，就像是排隊一樣，排頭的人走了，那其餘的人就必須往前進一格，也因此出隊會涉及到整個陣列的移動，時間複雜度為O(N)
+
+    ![img](https://i.imgur.com/idLKa7f.png)
+
+- ###### 如果想要維持O(1)，可以透過不搬移陣列的方式僅刪除頭部元素即可。但這樣會造成假溢位問題
+
+  ![img](https://i.imgur.com/gOtSVFy.png)
+
+#### 假溢出(False overflow)
+
+- ###### 如下圖所示，由於我們在Pop出前面的元素時沒有進行陣列的搬移。導致前面的空間浪費無法插入，此時可以透過`Circular Quee`
+
+- ![img](https://i.imgur.com/IQ16QUm.png)
+
+#### Circular Queue
+
+- ###### 要解決假溢出的問題，其實我們只要將rear跑到陣列界線時，再往下走一格會回到陣列的頭就可以解決了，也就是使陣列的頭尾相接，這種陣列我們稱之為循環陣列(circular array)。
+
+- ![img](https://i.imgur.com/q7rI6ZC.png)
+
+###  Implement Queue using Stacks
+
+- ##### 本題僅可使用 Stack 資料結構作為來源 ，而在 Stack 當中有兩種標準定義的方法：
+
+  - ###### pop：取出最上邊（最新被加入）的元素
+
+  - ###### push：新加入的元素會邊加入到最上方
+
+- ###### 準備兩個Stack
+
+  - ###### Push:
+
+    - ###### 每次使用時，會先把 stack2 倒過來放進 stack1 中
+
+    - ###### 確定 stack2 空了以後，再放入新資料
+
+    - ![https://ithelp.ithome.com.tw/upload/images/20210920/201413363IHUqH8HPq.png](https://ithelp.ithome.com.tw/upload/images/20210920/201413363IHUqH8HPq.png)
+
+  - ##### Pop: (達到先進先出)
+
+    - ###### 每次使用時，會先把 stack1 倒過來放進 stack2 中(達到先進先出)
+
+    - ###### 確定 stack1 空了以後，在從stack2取出資料
+
+    - ![https://ithelp.ithome.com.tw/upload/images/20210920/20141336JsOBStPg0W.png](https://ithelp.ithome.com.tw/upload/images/20210920/20141336JsOBStPg0W.png)
+
+  - ##### peek: 查看最開頭資料
+
+    - ###### 若資料在stack1，取得最前面的資料
+
+    - ###### 若資料在stack2，取得最後面的資料
+
+    - ![https://ithelp.ithome.com.tw/upload/images/20210920/20141336GmtRSBuGza.png](https://ithelp.ithome.com.tw/upload/images/20210920/20141336GmtRSBuGza.png)
+
+
 
 ## Hash
 
@@ -119,6 +284,68 @@
 
 - ###### `快速排序法`採用分而治之法(Divide-and-conquer)，把`大問題切割成小問題`，會於資料中找到一個`基準值(Pivot)`，並將資料逐一與這個值相比較，最後可以得到兩個部分，分別為`大於這個值`與`小於這個值`的數值，大於基準值的數值放在`右邊`，小於基準值的數值放`左邊`，`基準值`就很像是我們使用的`篩子`，篩完之後物品就會被`區分`成兩塊
 
+- ###### 先找一個基準點，然後派兩個代理人分別從資料的兩邊開始往中間找，如果右邊找到一個值比基準點小，左邊找到一個值比基準點大，就讓他們互換。反覆找並互換，直到兩個人相遇。然後再將相遇的點跟基準點互換。第一輪結束。
+
+- ##### 操作方式
+
+  1. ###### 挑選基準值(Pivot)
+
+     - ###### 取亂數
+
+     - ###### 頭數、尾數、中間數排序後取中間值
+
+       ###### 例如：1,5,7,9,8,6,3，第一個數為 1，最後一個數為 3 ，中間數為 9，由小至大排序後得到 1, 3, 9 可以取 3 做為基準值
+
+     - ###### 取數值的最左邊或做右邊
+
+  2. ###### 數值的比較
+
+     - ###### 有一陣列稱為 array，數值共有 n 個，例如：`6, 4, 9, 3, 5, 0, 7, 2, 8, 1`，數值共有 10 個，需做兩件事情來與基準值做比較，才能將`大於`與`小於`基準時的數值分類出來，假設基準值是 `6`
+
+     - 由左往右找出第一個大於基準值的索引位置 = i
+
+     - 由右往左找出第一個小於基準值的索引位置 = j
+
+  3. ###### 交換位置
+
+     - ###### 若i < j代表此輪排序還沒完成，將i元素與j元素互換
+
+     - ###### 若i >= j 代表此輪排序已經完成，將基準值與j元素互換
+
+  4. ###### 各別處理左區與右區
+
+     - ###### 再針對左區或右區，在重新挑選基準值，例如左區有 2, 4, 1, 3, 5，可在此區重新挑基準值，例如以 2 為基準值，再重覆 1 ~ 3 步驟即可(遞迴)，等到最後切到只剩單一元素時，即可完成所有數值的排序
+
+
+  - ```C#
+    //array[left] 做基準
+    static void QuickSort1(int[] array, int left, int right)
+    {
+        if (left < right)
+        {
+            int i = left;
+            int j = right + 1;
+            while (true)
+            {
+                while (i + 1 < array.Length && array[++i] < array[left]) ;
+                while (j - 1 > -1 && array[--j] > array[left]) ;
+                if (i >= j)
+                    break;
+                Swap(array, i, j);
+            }
+            Swap(array, left, j);
+            QuickSort1(array, left, j - 1);
+            QuickSort1(array, j + 1, right);
+        }
+    }
+    ```
+
+  - 最壞的情況
+    ![https://chart.googleapis.com/chart?cht=tx&chl=O(n%5E2)](https://chart.googleapis.com/chart?cht=tx&chl=O(n%5E2))，每次挑基準值的時候，都剛好挑到最大值或最小值
+
+  - 最好的情況
+    O(n log n)，挑選到好的基準值，可將資料切為一半，再根據其中一半再切一半，再分別去處理小的子區塊，切 log n 次，所以會花O(log n)時間
+
 ### 合併排序法(merge sort)
 
 - ##### 合併排序法(merge sort)就是一種由分治法實現的演算法，直觀上也是符合分治法的三個步驟
@@ -185,6 +412,10 @@
   | 平均時間複雜度 | O(nlog⁡n) |      |
   | 最差空間複雜度 | O(n)     |      |
   | 是否穩定       | 是       |      |
+
+### 堆積排序法 Heap Sort
+
+- ![heap-sort](https://img.magiclen.org/albums/heap-sort/animation-361x351.gif)
 
 
 
