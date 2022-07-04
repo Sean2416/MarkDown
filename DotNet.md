@@ -736,6 +736,54 @@
 
   - ###### 憑證簽發有關單位的電子簽名
 
+### HTTP/2
+
+- ##### **主要目的是透過一些措施改善瀏覽器瀏覽網頁加載的速度(page load)**
+
+- ##### http/2與 http/1.1有著高度的相容信，舉凡request method, http status code, url, header 等等，因此只需要確保你的網站有支援https(因為瀏覽器只支援https 在http/2上)
+
+- ##### 與HTTP差異
+
+  - ###### HTTP/2 協定建置在 HTTPS 安全連線之上，因此在更新 HTTP/2之前，網站必須要擁有 TLS/SSL 安全性憑證來保障安全連線。
+
+  - ###### 在減少多個連線工作次數的情況下，瀏覽器只需單一網路連線就可以與網站伺服器進行連接。
+
+  - ###### 由單一網路連線時達成同時傳輸多個 HTTP Request 和 Response，並擴充增加可以同時請求發送 CSS/JS/Images 等等資源。
+
+  - ###### 優先權設計(Prioritization)，伺服器可以決定例如 CSS 或 JavaScript 檔案，哪些要優先傳送。
+
+  - ###### Header 壓縮，HTTP/2 處理了絕大部份重複的 Headers ，並在傳送前進型壓縮，有效減少了過多重複的資訊也縮短了冗長得傳輸過程。
+
+  - ###### HTTP/2 使用單一Binary 二進位的封包結構設計，對伺服器和瀏覽器來說，可以更快的解析傳輸資料。
+
+  - ###### 伺服器主動推送資源(Server Push)，允許伺服器除了 HTML 之外，連同需要的 CSS/JavaScript/Images 檔案，主動推到瀏覽器的快取之中。
+
+#### Request and response multiplexing (多路複用)
+
+- ###### 在http/1.1中，client端時常會同時發起多個request至server拿取檔案(像是js, css, image等)，以此方式達到快速載入頁面。如下圖在http/1.1中會同時與server建立3個TCP connection，但是瀏覽器通常會限制TCP connection同時建立的數目。因此在http/2協定中，允許client端與同一server建立單一TCP connection並以非同步方式傳輸要的檔案。
+
+- ![img](https://miro.medium.com/max/1050/1*xRIvJ0b_aDgcud2j2Je8JQ.png)
+
+#### Header compression (標頭壓縮)
+
+- ##### 每一個http的傳輸中都會攜帶一組header，在http/1.1中，header會是以明文(plain text)傳輸大小通常會是500-800 bytes，若有攜帶cookie也有可能會更大。因此在http/2中，會將request以及response的header使用HPACK演算法壓縮header的內容，此方法壓縮後可以減少85%-88%的大小
+
+#### Server push (伺服器推送)
+
+- ##### 在http/1.1中，通常client端request甚麼server就會回傳甚麼，例如: 當client request html那麼server將只會回傳html。但在http/2中，允許server主動推送有相關的資料給client，例如: 當client只request html，但是server知道client request此html後續也會request css, js等，因此server就會在client沒有request的情況下主動推送css, js檔給client。那server怎麼知道這些檔案是有相關性的呢? web developer將需要server push的檔案加上特定的描述即可
+
+- ![img](https://miro.medium.com/max/900/1*FSELCfdKHCdoqr5Ejd5MYQ.png)
+
+#### Binary framing layer
+
+- ##### 在http/2中，header與body所挾帶的property與http/1.1相同(ex. verbs, methods)，然而兩者在傳輸上會有不同。在http/2中，會將header以及body編碼成二進制在server 與client端中傳輸，在http/1.1中，則是以明文的方式傳輸。將訊息編碼成二進制進行傳輸，此特性是http/2 的其他特性的根本基礎。
+
+- ![img](https://miro.medium.com/max/1050/1*rFE7nzYYZuUsLss7j6Xguw.png)
+
+
+
+
+
 
 
 
