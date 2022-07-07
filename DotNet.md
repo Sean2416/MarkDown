@@ -640,7 +640,7 @@
 
 
 
-## 通訊協定
+## 網路協定
 
 ### TCP
 
@@ -780,9 +780,39 @@
 
 - ![img](https://miro.medium.com/max/1050/1*rFE7nzYYZuUsLss7j6Xguw.png)
 
+### WebSocket 
 
+- ##### `WebSocket` 協定只需透過一次連結便能保持連線，不必再透過一直發送 `Request` 來與 Server 互動
 
+- ##### WebSocket是瀏覽器與伺服器交換資料的方式之一，與HTTP最大的不同是，他是一個持續的雙向的連線，所以沒有重新連線，重新傳送檔頭等多餘的負荷，反應更即時。
 
+- ##### Wiki：「WebSocket是一種網路傳輸協定，可在單個TCP連接上進行全雙工通訊，位於OSI模型的應用層。」
+
+- ![img](http://www.ruanyifeng.com/blogimg/asset/2017/bg2017051502.png)
+
+- ##### WebSocket可以選擇ws或是wss通訊協定，ws就相當於一般的http，wss則相當於https，不過需要伺服器可以支援。
+
+- ##### 由於時持續的連線，所以在連線中URI是不會改的，所以每次也只能選擇一個URI，想跟不同URI連線，就需要建立新的WebSocket連線。
+
+- 
+
+  
+
+# Webhook
+
+- ##### 簡單來說就是一種反向API機制，類似於觸發器的一樣。
+
+- ##### 說到底就是一種「事件驅動」的設計，而什麼是「事件驅動」呢？
+
+  - ##### 舉例： 「當(發生什麼事件)時(請主動通知我)」，那被通知的那一方要做什麼事情就跟主動通知方無關了，藉由這樣的設計減少核心系統的複雜程度。
+
+  - ![img](https://s3-ap-northeast-1.amazonaws.com/upload.potatomedia.co/articles/potato_609ab82b-3b04-4776-bb15-36f0ab291d19_8b2f84b9c537127301deb4ff72ecf61c62c63278.png)
+
+  - ![img](https://s3-ap-northeast-1.amazonaws.com/upload.potatomedia.co/articles/potato_609ab82b-3b04-4776-bb15-36f0ab291d19_46387e0c560da578ecf33e6514e286af629ff331.png)
+
+- ##### 消費一個webhook是爲webhook準備一個URL，用於webhook發送請求。
+
+- ##### 多數webhook以兩種數據格式發布數據：JSON或者XML，這需要解釋。另一種數據格式是application/x-www-form-urlencoded or multipart/form-data。
 
 
 
