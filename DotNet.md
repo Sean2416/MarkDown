@@ -1739,7 +1739,7 @@
           public void ack(String messageId){
             
           }
-      
+        
           // 傳送失敗回撥
           public void nack(String messageId){
               //重發該訊息
@@ -1886,24 +1886,6 @@
 
   - ###### Redis 支援 Master-Slave（主從式架構），主要是將 Master 同步至 Slave，這樣當整體的 Traffic 流量較大時，可以將一些流量導至 Slave 減輕 Master 的負擔，詳細的部分可以參考 [這裡](https://stevenitlife.blogspot.com/2018/09/redis-master-slave.html)。
 
-  - ##### 讀寫分離
-
-    - ###### 當用戶端需要讀寫的時候，必須要透過Master才可以進行讀寫操作．
-
-    - ###### 當用戶端只需要讀取資料而不需要寫入的時後，可以考慮直接連Replica取得資料，減輕Master的負擔．
-
-  - ##### Sentinel機制
-
-    - ###### 功能
-
-      - ###### 監控
-
-      - ###### 通知
-
-      - ###### 失效自動切換
-
-        - ###### 組態設定提供
-
 - ### 資料保留
 
   - ###### Redis 可以將 memory 的資料保存至硬碟中，有兩種不同的方式可以進行備份，分別為 `RDB` 與 `AOF`，詳細的部分可以參考 [這裡](https://segmentfault.com/a/1190000002906345)。
@@ -1967,8 +1949,6 @@
   - ###### allkeys-lfu：移除最近最少使用的key。
 
   - ###### volatile-lfu：在設定了過期時間的key中，移除最近最少使用的key。
-
-- 
 
 - ### 過期鍵刪除策略
 
@@ -2091,24 +2071,6 @@
 
   -  [Redis Desktop Manager](https://github.com/uglide/RedisDesktopManager/releases/tag/0.8.8)
 
-### NET Core Example
-
-- 安裝套件 `StackExchange.Redis`
-
-- 連線Redis
-
-  - ```C#
-    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("127.0.0.1:6379,allowAdmin=true"));
-    ```
-
-- 新增資料
-
-  - `db.StringSet("Test", value, TimeSpan.FromSeconds(300));`	
-
-- 取得資料
-
-  - ` db.StringGet("Test");`
-
 ### 快取擊穿
 
 - ##### 快取擊穿指的是某個 **key 一直在扛著高併發** ，所謂扛著高併發就是說大量的請求都是獲取這個 key 對應的值。而這個 key 在某個時間突然失效了，大量的請求就無法在快取中獲取資料了，而是去請求資料庫了，這樣很有可能導致資料庫被擊垮。這就是快取擊穿。
@@ -2135,11 +2097,311 @@
 
 - 
 
+### Redis Replication 
+
+- ##### Redis 支援 Master-Slave（主從式架構），主要是將 Master 同步至 Slave，這樣當整體的 Traffic 流量較大時，可以將一些流量導至 Slave 減輕 Master 的負擔，詳細的部分可以參考 [這裡](https://stevenitlife.blogspot.com/2018/09/redis-master-slave.html)。
+
+- ##### 讀寫分離
+
+  - ###### 當用戶端需要讀寫的時候，必須要透過Master才可以進行讀寫操作．
+
+  - ###### 當用戶端只需要讀取資料而不需要寫入的時後，可以考慮直接連Replica取得資料，減輕Master的負擔．
+
+- ##### Sentinel機制
+
+  - ###### 哨兵模式就是用來監視 Redis 系統，哨兵會監控 Master 是否正常運作。如果遇到 Master 出現故障或是離線時，哨兵之間會開始判斷，直到我們所設定需達到的判斷數量後，哨兵會將其所屬的 Slave 變成 Master，並再將其他的 Slave 指向新的 Master。
+
+    - ![img](https://raw.githubusercontent.com/880831ian/redis-sentinel-docker/master/images/sentinal.png)
+
+  - ##### 功能
+
+    - ###### 監控
+
+      - ###### 哨兵會和要監控的 Master 建立兩條連接，`Cmd` 和 `Pub/Sub`：
+
+        - ###### Cmd 是哨兵用來定期向 Master 發送 `Info` 命令以取得 Master 的訊息，訊息中會包含 Master 有哪些 Slave。當與 Master 獲得 Slave 訊息後，哨兵也會和 Slave 建立連接。
+
+        - ###### 哨兵也會定期透過 `Cmd` 向 Master、Slave 和其他哨兵發送 `Ping` 指令來檢查是否存在，確認節點狀態等。
+
+        - ###### `Pub/Sub` 讓哨兵可以透過訂閱 Master 和 Slave 的 `__Sentinel__:hello` 這個頻道來和其他哨兵定期的進行資訊交換。
+
+    - ###### 主觀下線 (SDOWN)
+
+      - ###### 單個哨兵認為 Master 已經停止服務了，有可能是網路不通或是接收不到訂閱等，而哨兵的判斷是依據傳送 Ping 指令之後一定時間內是否收到回覆或是錯誤訊息，如果有哨兵就會主觀認為這個 Master 已經下線停止服務了。
+
+    - ###### 客觀下線 (ODOWN)
+
+      - ###### 由多個哨兵對同一個 Master 各自進行主觀下線的判斷後，再綜合所有哨兵的判斷。若是認為主觀下線的哨兵到達我們所配置的數量後，即為客觀下線。
+
+    - ###### 故障轉移 (Failover)
+
+      - ###### 當 Master 已經被標記為客觀下線時，起初發現 Master 下線的哨兵會發起一個選舉 (採用的是 Raft 演算法)，並要求其他哨兵選他做為領頭哨兵，領頭哨兵會負責進行故障的恢復。當選的標準是要有超過一半的哨兵同意，所以哨兵的數量建議設定成奇數個。
+
+      - ###### 選出領頭哨兵後，領頭哨兵會開始從下線的 Master 所屬 Slave 中跳選出一個來變成新的 Master，挑選的依據如下：
+
+        1. ###### 所有在線的 Slave 擁有最高優先權的，優先權可以透過 slave-priority 來做設定。
+
+        2. ###### 如果有多個同為最高優先權的 Slave，則會選擇複製最完整的。
+
+        3. ###### 若還是有多個 Slave 皆符合上述條件，則選擇 id 最小的。
+
+      - ###### 接著領頭哨兵會將舊的 Master 更新成新的 Master 的 Slave ，讓其恢復服務後以 Slave 的身份繼續運作。
+
+    - ###### 失效自動切換
+
+      - ###### 組態設定提供
+
+  - ##### 設定檔
+
+    - ```yaml
+      port 26379
+      
+      #設定要監控的 Master，最後的 2 代表判定客觀下線所需的哨兵數
+      sentinel monitor mymaster 192.168.176.4 6379 2
+      
+      #哨兵 Ping 不到 Master 超過此毫秒數會認定主觀下線
+      sentinel down-after-milliseconds mymaster 5000
+      
+      #failover 超過次毫秒數即代表 failover 失敗
+      sentinel failover-timeout mymaster 180000
+      ```
+
+- ##### Master-Slave範例
+
+  - ###### 透過Docker 建立一台Master redis及一台Slave，並藉由Sential服務監控
+
+    - ```yaml
+      version: '3.4'
+      
+      
+      services:
+        redis-master:
+          container_name: redis-master
+          image: redis:5.0.3-alpine3.9
+          ports:
+            - "6379:6379"
+        redis-slave:
+          container_name: redis-slave
+          image: redis:5.0.3-alpine3.9
+          # Slave端設定，指定連接的Master的IP和端口號，也需要與Master保持一致
+          command: redis-server --slaveof redis-master 6379
+          links:
+            - redis-master
+          ports:
+            - "6380:6379"
+      
+      ```
+
+    - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202207211949479.png)
+
+  - ###### 透過指令可以看到Master可以進行讀寫動作，而Slave會透過同步取得Master寫入的資料但無法單獨寫入
+
+    - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202207202030240.png)
+
+  - ###### 當Master故障時，Sentinel機制會將Slave轉化為Master。並當原先Master啟動後會變成為Slave腳色
+  
+    - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202207202036439.png)
+
+### NET Core Example
+
+- 安裝套件 `StackExchange.Redis`
+
+- 連線Redis
+
+  - ```C#
+    builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("127.0.0.1:6379,allowAdmin=true"));
+    ```
+
+- 新增資料
+
+  - `db.StringSet("Test", value, TimeSpan.FromSeconds(300));`	
+
+- 取得資料
+
+  - ` db.StringGet("Test");` 
+
+- ##### 針對Master-Slave架構
+
+  - ###### 當原本的Master掛掉時，程式端並不會知道新的Master在哪台主機上。因此，需要做另外處理
+
+  - ###### 利用 StackExchange.Redis ConnectionMultiplexer `自動辨識 master` 的特性來做為調整依據
+
+    - ![1automaster](https://cloud.githubusercontent.com/assets/3851540/24083525/573ea7be-0d13-11e7-9f71-c0ec5a0a7d88.png)
+
+  - ```C#
+     private static readonly Lazy<ConnectionMultiplexer> Connection;
+            /// <summary>
+            /// Use EndPoint to connection.
+            /// </summary>
+            static RedisHaFactory()
+            {
+                ConfigurationOptions options = new ConfigurationOptions
+                {
+                    //對應每個節點的redis server
+                    EndPoints = { { "127.0.0.1:6379" }, { "127.0.0.1:6380" }, { "127.0.0.1:6381" } },
+                     //定義使用的資料庫
+                    DefaultDatabase =0
+                };
+                Connection = new Lazy<ConnectionMultiplexer>(() => ConnectionMultiplexer.Connect(options));
+            }
+    
+            public static ConnectionMultiplexer GetConnection => Connection.Value;
+            public static IDatabase RedisDB => GetConnection.GetDatabase();
+    ```
+
+- ##### 指定透過Mater 或 Replica操作
+
+  - ```C#
+    //寫入的時候只有Mater可以操作，不需要特別指定
+    var ab = RedisHaFactory.RedisDB.StringSet("test", "Write string value from another master");
+    
+    //透過CommandFlags 指定透過replica讀取 (CommandFlags.DemandReplica: 只能透過replica, PreferReplica優先使用replica )
+    var stringGet = RedisHaFactory.RedisDB.StringGet("test", CommandFlags.PreferReplica);
+    ```
+
+- ##### 簡易搶票實作範例
+
+  - ```C#
+    private static readonly TicketService _service = new TicketService(_client);
+    private static readonly string _eventCountKey = "Event_Count";
+    
+    private static async Task Run()
+    {
+        var result = new ConcurrentStack<bool>();
+        var tasks = new List<Task>();
+        
+        // 發出105個task
+        for (var index = 0; index < 105; index++)
+        {    
+            var number = index;
+            tasks.Add(Task.Run(async () =>
+            {
+                // 透過 TicketService 處理搶票的邏輯，返回bool
+                result.Push(await _service.GetTicket(_eventCountKey));
+                Console.WriteLine($"{number}");
+            }));
+        }
+        await Task.WhenAll(tasks);
+    
+        // 驗證拿到成功的client request數量
+        Console.WriteLine($"success count: {result.Count(r => r == true)}");
+    }
+    
+    public class TicketService
+    {
+        private readonly RedisClient _client;
+    
+        public TicketService(RedisClient redisClient)
+        {
+            _client = redisClient;
+        }
+    
+        public async Task<bool> GetTicket(string key)
+        {
+            // 只有在數量還有剩 且 透過Redis的Lock成功，才繼續搶票的動作
+            // 這邊Lock的Timeout時間為100毫秒，純粹只是為了測試
+            if (await TicketCount(key) > 0 && await _client.Lock(key, TimeSpan.FromMilliseconds(100)))
+            {
+                try
+                {
+                    // 遞減數量，會返回剩餘的數量，剩餘數量小於0代表超賣了，會返回失敗
+                    var lastCount = await _client.StringDecrement(key);
+    
+                    return lastCount >= 0;
+                }
+                finally
+                {
+                    // 完成後要把Lock釋放
+                    await _client.LockRelease(key);
+                }
+            }
+    
+            return false;
+        }
+    
+        private async Task<int> TicketCount(string key)
+        {
+            return (int)await _client.GetString(key);
+        }
+    }
+    
+    public class RedisClient
+    {
+        // 可重用，所以在ctor建立後就放到filed上
+        private readonly ConnectionMultiplexer _connection;
+    
+        public RedisClient()
+        {
+            var options = new ConfigurationOptions()
+            {
+                EndPoints = {"localhost"}
+            };
+            _connection = ConnectionMultiplexer.Connect(options);
+        }
+    
+        public async Task<bool> Lock(string key, TimeSpan expiry)
+        {
+            // Lock失敗就等200毫秒，再重試，最多10次
+            var lockKey = $"Lock_{key}";
+            var number = 0;
+            do
+            {
+                try
+                {
+                    var database = _connection.GetDatabase();
+                    if (await database.LockTakeAsync(lockKey, Environment.MachineName, expiry))
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception)
+                {
+                    await Task.Delay(200);
+                    number++;
+                }
+            } while (number < 10);
+    
+            return false;
+        }
+    
+        public async Task SetString(string key, RedisValue value)
+        {
+            var database = _connection.GetDatabase();
+            await database.StringSetAsync(key, value);
+        }
+    
+        public async Task<RedisValue> GetString(string key)
+        {
+            var database = _connection.GetDatabase();
+    
+            return await database.StringGetAsync(key);
+        }
+    
+        public async Task<bool> LockRelease(string key)
+        {
+            var lockKey = $"Lock_{key}";
+            var database = _connection.GetDatabase();
+    
+            return await database.LockReleaseAsync(lockKey, Environment.MachineName);
+        }
+    
+        public async Task<long> StringDecrement(string key)
+        {
+            var database = _connection.GetDatabase();
+    
+            return await database.StringDecrementAsync(key);
+        }
+    }
+    ```
+
+    
+
 ### 參考
 
 - [ASP.NET Core 註冊 StackExchange.Redis 的方式](https://blog.yowko.com/stackexchange-redis-in-aspdotnet-core/)
-
-
+- [ASP.NET Core分散式快取Redis主從Sentinel哨兵模式實戰演練](https://www.gushiciku.cn/pl/gvu6/zh-tw)
+- [使用 Redis-Sentinel 打造 Redis 的 HA](https://dotblogs.com.tw/supershowwei/2016/02/03/123740)
+- [使用Docker-compose 搭建Redis 哨兵模式 - GitHub](https://github.com/880831ian/docker-compose-redis-sentinel)
 
 
 
@@ -2861,7 +3123,35 @@ public class HomeController : Controller
 
 # Others
 
-## SQL 語法
+## SQL 
+
+### 索引
+
+- #### 叢集索引
+
+  - ######  當資料表設定了「叢集索引」，則資料表「實體資料列」的順序會依據叢集索引的值做排序
+
+  - ######  每一資料表只能有一個「叢集索引」
+
+  - ###### SQL Server  資料表的**主索鍵**（PK），預設為「叢集索引」且是唯一的（Unique）
+
+  - ###### B-Tree結構
+
+  - ###### 叢集索引插入資料時速度較慢（時間花費在「物理存儲的排序」上，要找到對的位置進行插入）
+
+  - ###### 查詢資料速度: 叢集索引 > 非叢集索引
+
+- #### 非叢集索引
+
+  - ###### 資料列未根據非叢集索引進行排序與儲存
+
+  - ######  每一資料表能有249個「非叢集索引」
+
+  - ###### 組合欄位索引有16欄位與總和900位元組索引鍵大小的限制 ，可以使用內含資料行(INCLUDE)來規避這個限制並加速查詢作業。
+
+  - ###### B-Tree結構
+
+  - ###### 非叢集索引建立的先後順序並不是很重要，因為它們不會互相影響也不會對改變資料表中實際資料的排序，但是建立叢集索引會影響實際資料排列，也會影響已建立的非叢集索引。
 
 ### 跳過N筆資料
 
@@ -2876,6 +3166,28 @@ public class HomeController : Controller
       OFFSET 1 ROWS  /****跳過第一筆資料 ***/
       FETCH NEXT 1 ROWS ONLY;/****取一筆，若沒使用Fetch Next 則取全部 ***/
     ```
+
+### Master Slave Replication
+
+- ##### **主從式架構**：將資料庫的 server 區分成 Master(1台) 與 Slave(N台) 兩種，Master 負責資料寫入，Slave 提供資料檢索；這樣就把壓力分散到幾台 Server 上面。
+
+- ##### **資料庫同步**：Slave 會同步 Master 的資料，這樣除了分散 server 壓力外，資料也獲得了備份。
+
+- ##### 同步方式
+
+  - ###### 在 master 的 server 執行的 SQL command 會被記錄在 Binary Log 裡面
+
+  - ###### master 將 Binary Log 傳送到 slave 的 Relay Log
+
+  - ###### slave 依據 Relay Log 做資料的變更
+
+  - ![img](https://miro.medium.com/max/1400/1*WlxDWYwxwlj3-k_yVumyOg.png)
+
+### 參考
+
+- [MySQL Master Slave Replication 主從式架構設定教學](https://medium.com/dean-lin/16d0a0fa1d04)
+
+
 
 ##  Log4j 資安漏洞
 
