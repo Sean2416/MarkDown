@@ -8,8 +8,6 @@
 
 - ###### 類別的定義包含了資料的形式(屬性, Field)以及對資料的操作(方法, Method)
 
-- 
-
 ### 三大特性
 
 - ##### 封裝
@@ -64,8 +62,6 @@
   - ###### 抽像類型的每個實例都是某個具體子類型的實例
 
   - ###### 抽象類別是對類別的抽象
-
-
 
 ## Process 
 
@@ -186,17 +182,72 @@
 
   - ##### Push:
 
-    - ###### 檢視queue1或queue2中哪個陣列有值,將資料存放該陣列中，並插入再最右邊
+    - ###### 將資料先推至q2
 
-    - ###### 若皆為空則存放於queue1
+    - ###### 將q1資料由前至後依序推往q2
+
+    - ###### 將q2 asign q1，並且初始化q2
 
   - ##### Pop:
 
-    - ###### 依循Queue結構定義每次Pop都會從最左邊元素取出
+    - ###### 若rear>0代表裡面有值
 
-      1. ###### 檢視queue1或queue2中哪個陣列有值，將該陣列資料由左至右取出存放於另一個queue中，直到剩下最後一個元素
-
-      2. ###### 最後一個元素即為pop的結果(LIFO)
+      - ###### 將第一個元素取出，後面的元素往前搬
+  
+      - ###### rear-1
+  
+  - ```C#
+     public class Stack
+        {
+            public int[] q1 = new int[100];
+            public int[] q2 = new int[100];
+            public int rear = 0;
+      
+            public void push(int x)
+            {
+                int index = 0;
+      
+                q2[index++] = x;
+      
+                if (rear > 0)
+                {
+                    for (var i = 0; i < rear; i++)
+                        q2[index++] = q1[i];
+                }
+      
+                q1 = q2;
+                q2 = new int[100];
+                rear++;
+            }
+      
+            public void pop()
+            {
+                if (rear > 0)
+                {
+                    for (var i = 1; i < rear; i++)
+                    {
+                        q1[i - 1] = q1[i];
+                        q1[i] = 0;
+                    }
+                    rear--;
+                }
+      
+            }
+      
+            public int top()
+            {
+                if (rear > 0)
+                    return q1[0];
+      
+                return -1;
+            }
+      
+            public int size()
+            {
+                return rear;
+            }
+        }
+    ```
 
 ## Queue
 
@@ -271,8 +322,50 @@
     - ###### 若資料在stack2，取得最後面的資料
 
     - ![https://ithelp.ithome.com.tw/upload/images/20210920/20141336GmtRSBuGza.png](https://ithelp.ithome.com.tw/upload/images/20210920/20141336GmtRSBuGza.png)
-
-
+  
+  - ```C#
+    public class Queue
+    {
+        public int[] s1 = new int[100];
+        public int[] s2 = new int[100];
+        public int index = 0;
+    
+        public void EnQueue(int x)
+        {
+            if (index == 0)
+                s1[0] = x;
+            else
+            {
+                var tmpIndex = 0;
+    
+                for (var i = index - 1; i >= 0; i--)
+                    s2[tmpIndex++] = s1[i];
+    
+                tmpIndex = 0;
+                s1[tmpIndex++] = x;
+    
+                for (var i = index - 1; i >= 0; i--)
+                    s1[tmpIndex++] = s2[i];
+            }
+    
+            index++;
+        }
+    
+        // Dequeue an item from the queue
+        public int DeQueue()
+        {
+            if (index == 0)
+            {
+                Console.WriteLine("Q is Empty");
+            }
+    
+            var result = s1[index-1];
+            s1[index - 1] = 0;
+            index--;
+            return result;
+        }
+    }
+    ```
 
 ## Hash
 
@@ -793,8 +886,6 @@
 - ##### WebSocket可以選擇ws或是wss通訊協定，ws就相當於一般的http，wss則相當於https，不過需要伺服器可以支援。
 
 - ##### 由於時持續的連線，所以在連線中URI是不會改的，所以每次也只能選擇一個URI，想跟不同URI連線，就需要建立新的WebSocket連線。
-
-- 
 
   
 
@@ -1970,8 +2061,6 @@
 
     - ###### 定期刪除是前兩種策略的整合和折中。因為是批量操作，並限定了執行時長和頻率，可以有效減少刪除操作對CPU的響應，也避免了記憶體長久不刪除的導致的浪費
 
-- 
-
 ### 資料型態
 
 - #### **String**
@@ -2036,7 +2125,114 @@
 
   - ![img](https://dotblogsfile.blob.core.windows.net/user/ricochen/133abc51-46b4-42bf-afe5-8d90fa527abe/1484494735_40553.png)
 
-    
+
+### Transaction
+
+- ### MULTI
+
+  - ##### 開啟Transaction(類似beginTraction)
+
+- ### EXEC
+
+  - ##### 執行Multi開始的所有命令(類似Commit)
+
+  - ```powershell
+    127.0.0.1:6379> MULTI
+    OK
+    127.0.0.1:6379> get foo
+    QUEUED
+    127.0.0.1:6379> set ff test
+    QUEUED
+    127.0.0.1:6379> exec
+    1) "test"
+    2) OK
+    ```
+
+- ### DISCARD
+
+  - ##### 取消Multi開始的所有命令(rollback)
+
+  - ```powershell
+    127.0.0.1:6379> MULTI
+    OK
+    127.0.0.1:6379> set t 123
+    QUEUED
+    127.0.0.1:6379> get foo
+    QUEUED
+    127.0.0.1:6379> set k 234
+    QUEUED
+    127.0.0.1:6379> DISCARD
+    OK
+    127.0.0.1:6379> get t
+    (nil)
+    127.0.0.1:6379> get k
+    (nil)
+    ```
+
+- ### WATCH
+
+  - ##### 針對特定 key 進行監控，如果被監控的 key 被異動過，則執行 `EXEC` 時會失敗
+
+    - ###### 举个例子， 如果客户端 A 和 B 都读取了键原来的值， 比如 `10` ， 那么两个客户端都会将键的值设为 `11` ， 但正确的结果应该是 `12` 才对。如果在 [WATCH](http://redisdoc.com/transaction/watch.html#watch) 执行之后， [EXEC](http://redisdoc.com/transaction/exec.html#exec) 执行之前， 有其他客户端修改了 `mykey` 的值， 那么当前客户端的事务就会失败。(樂觀鎖) 
+
+  - ```powershell
+    > SET mykey 0
+    OK
+    > WATCH mykey
+    OK
+    > SET mykey 1
+    OK
+    > MULTI
+    OK
+    > SET mykey 2
+    QUEUED
+    > EXEC
+    (nil)
+    > GET mykey
+    "1"
+    ```
+
+- ###### 我們必須了解到 Redis transaction，能夠被實現的條件是基於 check-and-set 的 two-phase commit，而 check-and-set 則是因 Redis 2.2 後有 optimistic lock 得以實作。其中 `WATCH` 便是我們的 optimistic lock 實作出的方法，針對單一 key value 進行監控，配合 `EXEC` 確保本次 transaction 的原子性(atomic)，保證我們這一系列的操作都可以如預期地被完成。
+
+### Cluster 
+
+- ##### **Scalability** : 幫你將資料分散在不同的機器上，即便資料量變大，你也可以透過橫向擴展來 Handle 大量資料。
+
+- ##### **Availability** : 提供 Fail-Over 功能，即便某個機器掛掉了，不僅不會影響 Client 向 Cluster 讀寫資料，Client 還可在別台活著的機器上找到掛點機器的資料。
+
+- ##### Gossip:
+
+  - ##### 由種子節點發起，當一個種子節點有狀態需要更新到網絡中的其他節點時，它會隨機的選擇周圍幾個節點散播消息，收到消息的節點也會重複該過程，直至最終網絡中所有的節點都收到了消息。
+
+    - ###### Gossip 是周期性的散播消息，把周期限定為 1 秒
+
+    - ###### 被感染節點隨機選擇 k 個鄰接節點（fan-out）散播消息，這裡把 fan-out 設置為 3，每次最多往 3 個節點散播。
+
+    - ###### 每次散播消息都選擇**尚未發送過的節點**進行散播
+
+    - ###### 收到消息的節點不再往發送節點散播，比如 A -> B，那麼 B 進行散播的時候，不再發給 A。
+
+    - ![img](http://i1.kknews.cc/4rvEv6ofey7UaadDz5lSgtLCHyzhvxKx6g/0.jpg)
+
+  - ##### 特點
+
+    - ###### 擴展性:  允許節點的任意增加和減少，新增加的節點的狀態最終會與其他節點一致。
+
+    - ###### 容錯: 任何節點的宕機和重啟都不會影響 Gossip 消息的傳播，Gossip 協議具有天然的分布式系統容錯特性
+
+    - ###### 去中心化:  不要求任何中心節點，所有節點都可以是對等的，任何一個節點無需知道整個網絡狀況，只要網絡是連通的，任意一個節點就可以把消息散播到全網。
+
+    - ###### 一致性收斂: 協議中的消息會以一傳十、十傳百一樣的指數級速度在網絡中快速傳播，因此系統狀態的不一致可以在很快的時間內收斂到一致。
+
+  - ##### 缺陷
+
+    - ###### 消息的延遲:  節點只會隨機向少數幾個節點發送消息，消息最終是通過多個輪次的散播而到達全網的，因此使用 Gossip 協議會造成不可避免的消息延遲。**不適合用在對實時性要求較高的場景下。**
+
+    - ###### 消息冗餘: 節點會定期隨機選擇周圍節點發送消息，而收到消息的節點也會重複該步驟，因此就不可避免的存在消息重複發送給同一節點的情況，造成了**消息的冗餘**，同時也增加了收到消息的節點的處理壓力。而且，由於是定期發送而且不反饋，因此，即使節點收到了消息，還是會反覆收到重複消息，加重了消息的冗餘
+
+    - 
+
+      
 
 ### 安裝
 
@@ -2084,8 +2280,6 @@
 - ##### 在某個時間節點，大量的 key 失效，導致大量的請求從快取中獲取不到資料而去請求資料庫 。
 
   - ###### 最簡單的情況就是把key的過期時間分散開，也就是在設定key的過期時間的時候再加一個隨機值，就這樣就能完美的解決快取雪崩的問題。
-
-  - 
 
 ### 快取預熱
 
@@ -2244,7 +2438,7 @@
                 };
                 Connection = new Lazy<ConnectionMultiplexer>(() => ConnectionMultiplexer.Connect(options));
             }
-    
+      
             public static ConnectionMultiplexer GetConnection => Connection.Value;
             public static IDatabase RedisDB => GetConnection.GetDatabase();
     ```
@@ -2261,6 +2455,8 @@
 
 - ##### 簡易搶票實作範例
 
+  - ###### Redis的Lock比較像是一種話語權，取得Lock的request才能進行redis操作。否則只能等待
+  
   - ```C#
     private static readonly TicketService _service = new TicketService(_client);
     private static readonly string _eventCountKey = "Event_Count";
@@ -2393,8 +2589,9 @@
         }
     }
     ```
-
+  
     
+  
 
 ### 參考
 
@@ -2402,6 +2599,31 @@
 - [ASP.NET Core分散式快取Redis主從Sentinel哨兵模式實戰演練](https://www.gushiciku.cn/pl/gvu6/zh-tw)
 - [使用 Redis-Sentinel 打造 Redis 的 HA](https://dotblogs.com.tw/supershowwei/2016/02/03/123740)
 - [使用Docker-compose 搭建Redis 哨兵模式 - GitHub](https://github.com/880831ian/docker-compose-redis-sentinel)
+- [Redis 命令参考](http://redisdoc.com/topic/transaction.html)
+- [初識 Redis Cluster](https://vicxu.medium.com/%E5%88%9D%E8%AD%98-redis-cluster-ep-1-redis-cluster-%E6%9E%B6%E6%A7%8B%E7%B0%A1%E4%BB%8B-%E7%95%B6-redis-%E7%BE%A4%E8%81%9A%E5%9C%A8%E4%B8%80%E8%B5%B7-67be41e68654)
+
+
+
+## ELK
+
+- #### ELK是開源軟體的集合套件，功能為集中化各來源的資料流與資料分析，可做為網站的日誌分析和監控架構，也能夠協助網站管理者管理網站流量、紀錄造訪資訊進行分析與監控。
+
+  - ###### Elastic Search：儲存資料、資料搜尋檢視的軟體，可以快速搜尋、有效地對資料進行儲存和索引。
+
+  - ###### Logstash：資料處理軟體，可以採集資料、多管道蒐集資料並送到指定位置。
+
+  - ###### Kibana：數據分析和可視化平台，可以快速分析大量的資料，並以視覺化圖表和儀錶板的方式呈現。
+
+- ![ELK](https://www.webcomm.com.tw/blog/wp-content/uploads/2021/12/ELK.png)
+
+- ##### ELK功能為智能數據的應用，除了可以處理規模較大的日誌分析，讓資料檢索更有效率外，也能記錄網站訪客流量的訊息。
+
+  - #####  例如：網站資源的訪問者、訪問的裝置、訪問的結果等等。蒐集流量資料提供了許多後續行銷或商機開發的應用，也能幫助網站管理者更加了解網站的使用者。
+
+### 參考
+
+- [初探.net core NLog - 昕力資訊](https://www.tpisoftware.com/tpu/articleDetails/1337)
+- [ELK IN Docker](https://github.com/deviantony/docker-elk/tree/release-7.x)
 
 
 
@@ -3387,3 +3609,278 @@ public class HomeController : Controller
 
 - ##### 對比的 NOSQL，因為不包含任何關聯，單筆資料查詢後的所有需要的資料，都存在這一筆資料中，不需要做其他額外的查詢，相較之下會比 RDBMS 快。
 
+
+
+### ngrok
+
+- ###### 設定臨時性外部Domain
+
+- ```powershell
+  ngrok http 3000 //指定本基端Port號對外
+  
+  //設定完成後回傳一組暫時性網址對應指定PORT
+  https://1d18-1-162-108-143.jp.ngrok.io -> http://localhost:3000 
+  ```
+
+- 
+
+
+
+# 金流
+
+## 藍新金流
+
+- ### 流程
+
+  1. ##### 測試環境申請一組帳號。資料可以為虛假(測試用)
+
+  2. ##### 建立店家，並取得相關資訊(商店代號、API串接金鑰)
+
+  3. ##### 前端呼叫訂單API，API將所需資訊組合成Form表單回傳給前端
+
+     - ```C#
+       //接收前端傳過來的訂單資料，並組出藍新所需表單內容
+       public IActionResult SendToNewebPay(SendToNewebPayIn inModel)
+       {
+           SendToNewebPayOut outModel = new SendToNewebPayOut();
+       
+           //建立藍新所需資料Model
+           List<KeyValuePair<string, string>> TradeInfo = new List<KeyValuePair<string, string>>();
+           // 商店代號，步驟2取得
+           TradeInfo.Add(new KeyValuePair<string, string>("MerchantID", inModel.MerchantID));
+           // 回傳格式
+           TradeInfo.Add(new KeyValuePair<string, string>("RespondType", "String"));
+           // TimeStamp
+           TradeInfo.Add(new KeyValuePair<string, string>("TimeStamp", DateTimeOffset.Now.ToOffset(new TimeSpan(8, 0, 0)).ToUnixTimeSeconds().ToString()));
+           // 串接程式版本
+           TradeInfo.Add(new KeyValuePair<string, string>("Version", "2.0"));
+           // 商店訂單編號
+           TradeInfo.Add(new KeyValuePair<string, string>("MerchantOrderNo", inModel.MerchantOrderNo));
+           // 訂單金額
+           TradeInfo.Add(new KeyValuePair<string, string>("Amt", inModel.Amt));
+           // 商品資訊
+           TradeInfo.Add(new KeyValuePair<string, string>("ItemDesc", inModel.ItemDesc));
+           // 繳費有效期限(適用於非即時交易)
+           TradeInfo.Add(new KeyValuePair<string, string>("ExpireDate", inModel.ExpireDate));
+           
+           // 藍新支付頁面失敗或完成後，系統導回的路徑位置(這邊會回傳到CallbackReturn API)
+           TradeInfo.Add(new KeyValuePair<string, string>("ReturnURL", "https://1d18-1-162-108-143.jp.ngrok.io/Home/CallbackReturn"));
+           // 當使用者支付成功後，藍新系統會透過幕後方式回傳給商店相關支付結果資料
+           TradeInfo.Add(new KeyValuePair<string, string>("NotifyURL", "https://1d18-1-162-108-143.jp.ngrok.io/Home/CallbackNotify"));
+           // 系統取號後以 form post 方式將結果導回商店指定的網址
+           TradeInfo.Add(new KeyValuePair<string, string>("CustomerURL", "https://1d18-1-162-108-143.jp.ngrok.io/Home/CallbackCustomer"));
+           // 支付取消返回商店網址
+           TradeInfo.Add(new KeyValuePair<string, string>("ClientBackURL", inModel.ClientBackURL));
+               
+           
+           // 付款人電子信箱
+           TradeInfo.Add(new KeyValuePair<string, string>("Email", inModel.Email));
+           // 付款人電子信箱 是否開放修改(1=可修改 0=不可修改)
+           TradeInfo.Add(new KeyValuePair<string, string>("EmailModify", "0"));
+       
+           //開啟信用卡一次付清選項
+           TradeInfo.Add(new KeyValuePair<string, string>("CREDIT", "1"));
+       
+           //ATM 付款
+           if (inModel.ChannelID == "VACC")
+           {
+               TradeInfo.Add(new KeyValuePair<string, string>("VACC", "1"));
+           }
+           string TradeInfoParam = string.Join("&", TradeInfo.Select(x => $"{x.Key}={x.Value}"));
+       
+           // API 傳送欄位
+           // 商店代號步驟2取得
+           outModel.MerchantID = inModel.MerchantID;
+           // 串接程式版本
+           outModel.Version = "2.0";
+           //交易資料 AES 加解密
+           IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
+           string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+           string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
+           string TradeInfoEncrypt = EncryptAESHex(TradeInfoParam, HashKey, HashIV);
+           
+           //交易資料加密
+           outModel.TradeInfo = TradeInfoEncrypt;
+           //交易資料 SHA256 加密
+           outModel.TradeSha = EncryptSHA256($"HashKey={HashKey}&{TradeInfoEncrypt}&HashIV={HashIV}");
+       
+           // 將model 轉換為List<KeyValuePair<string, string>>, null值不轉
+           List<KeyValuePair<string, string>> postData = LambdaUtil.ModelToKeyValuePairList<SendToNewebPayOut>(outModel);
+       
+           Response.Clear();
+       
+           StringBuilder s = new StringBuilder();
+           s.Append("<html>");
+           s.AppendFormat("<body onload='document.forms[\"form\"].submit()'>");
+           s.AppendFormat("<form name='form' action='{0}' method='post'>", "https://ccore.newebpay.com/MPG/mpg_gateway");
+           foreach (KeyValuePair<string, string> item in postData)
+           {
+               s.AppendFormat("<input type='hidden' name='{0}' value='{1}' />", item.Key, item.Value);
+           }
+       
+           StringBuilder s = new StringBuilder();
+           s.AppendFormat("<form id='payForm' action='{0}' method='post'>", "https://ccore.newebpay.com/MPG/mpg_gateway");
+           foreach (KeyValuePair<string, string> item in postData)
+           {
+               s.AppendFormat("<input type='hidden' name='{0}' value='{1}' />", item.Key, item.Value);
+           }
+       
+           s.Append("</form>");
+       
+           return Json(s.ToString());
+       }
+       ```
+
+  4. ##### 前端直接執行回傳的Form Submit，呼叫藍新API開始導入付款頁面
+
+     - ```javascript
+       $.ajax({
+          url: '@Url.Content("~/Home/SendToNewebPay")',
+          method: 'POST',
+          dataType: 'json',
+          data: { inModel: postData, __RequestVerificationToken: $('@Html.AntiForgeryToken()').val() },
+          success: function(returnObj) {
+              /*呼叫付款API後，取得API所彙整之付款form表單
+              直接執行表單submit事件觸發導頁*/
+              $("#divContent").html(returnObj);
+              $("#payForm").submit();
+          },
+          error: function(err) {
+          alert(err.status + " " + err.statusText + '\n' + err.responseText);
+          }
+       });
+       ```
+
+  5. ##### 轉至付款頁面進行處理，付款選項會根據步驟3中所建立的參數決定(如VACC,CREDIT)
+
+     ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202208132334128.png)
+
+  6. ##### 加入支付完成返回商店網址方法
+
+     - ###### 送出訂單 API 時會跳轉至藍新金流付款畫面，當使用者完成付款動作時，藍新金流會回傳呼叫我們的「支付完成返回商店網址」，這裡會接收使用者付款的狀態，我們可以從回傳資訊內查詢使用者是否已付款。
+
+     - ###### 接收方法裡面要做的就是解密資料，我們傳送前有加密後再傳送，接收時也需要解密才能看到資料，解密方法是 AES
+
+     - ```C#
+       /// <summary>
+       /// 支付完成返回網址
+       /// </summary>
+       /// <returns></returns>
+       public IActionResult CallbackReturn()
+       {
+       	StringBuilder receive = new StringBuilder();
+       	foreach (var item in Request.Form)
+       	{
+       		receive.AppendLine(item.Key + "=" + item.Value + "<br>");
+       	}
+           //接收參數
+       	ViewData["ReceiveObj"] = receive.ToString();
+        
+       	IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
+       	string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+       	string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
+          
+       	string TradeInfoDecrypt = DecryptAESHex(Request.Form["TradeInfo"], HashKey, HashIV);
+       	NameValueCollection decryptTradeCollection = HttpUtility.ParseQueryString(TradeInfoDecrypt);
+       	receive.Length = 0;
+       	foreach (String key in decryptTradeCollection.AllKeys)
+       	{
+       		receive.AppendLine(key + "=" + decryptTradeCollection[key] + "<br>");
+       	}
+           
+       	// 交易訊息
+       	ViewData["TradeInfo"] = receive.ToString();
+        
+       	return View();
+       }
+       ```
+
+  7. ##### 加入商店取號網址方法
+
+     - ###### 商店取號網址會用在使用者選擇 ATM 付款時，藍新金流會呼叫這個網址，告知我們使用者要匯款的銀行代碼和帳號是多少，我們可以顯示銀行代碼和帳號給使用者知道
+
+     - ###### 我們可以從 BankCode 和 CodeNo 知道使用者要匯款的銀行代碼和帳號。
+
+     - ```C#
+       /// <summary>
+       /// 商店取號網址
+       /// </summary>
+       /// <returns></returns>
+       public IActionResult CallbackCustomer()
+       {
+       	// 接收參數
+       	StringBuilder receive = new StringBuilder();
+       	foreach (var item in Request.Form)
+       	{
+       		receive.AppendLine(item.Key + "=" + item.Value + "<br>");
+       	}
+       	ViewData["ReceiveObj"] = receive.ToString();
+        
+       	// 解密訊息
+       	IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
+       	string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+       	string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
+       	string TradeInfoDecrypt = DecryptAESHex(Request.Form["TradeInfo"], HashKey, HashIV);
+       	NameValueCollection decryptTradeCollection = HttpUtility.ParseQueryString(TradeInfoDecrypt);
+       	receive.Length = 0;
+       	foreach (String key in decryptTradeCollection.AllKeys)
+       	{
+       		receive.AppendLine(key + "=" + decryptTradeCollection[key] + "<br>");
+       	}
+       	ViewData["TradeInfo"] = receive.ToString();
+       	return View();
+       }
+       ```
+
+  8. ##### 加入支付通知網址方法
+
+     - ###### 當使用者實際付款完成時，不管是信用卡、ATM 或超商付款，會收到的通知
+
+     - ###### 例如使用者選擇 ATM 付款時，任何時間在 ATM 完成付款，我們從這方法收到通知後，寫入資料庫內紀錄使用者已付款就好。
+
+       ```C#
+       /// <summary>
+       /// 支付通知網址
+       /// </summary>
+       /// <returns></returns>
+       public IActionResult CallbackNotify()
+       {
+       	// 接收參數
+       	StringBuilder receive = new StringBuilder();
+       	foreach (var item in Request.Form)
+       	{
+       		receive.AppendLine(item.Key + "=" + item.Value + "<br>");
+       	}
+       	ViewData["ReceiveObj"] = receive.ToString();
+        
+       	// 解密訊息
+       	IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
+       	string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+       	string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
+       	string TradeInfoDecrypt = DecryptAESHex(Request.Form["TradeInfo"], HashKey, HashIV);
+       	NameValueCollection decryptTradeCollection = HttpUtility.ParseQueryString(TradeInfoDecrypt);
+       	receive.Length = 0;
+       	foreach (String key in decryptTradeCollection.AllKeys)
+       	{
+       		receive.AppendLine(key + "=" + decryptTradeCollection[key] + "<br>");
+       	}
+       	ViewData["TradeInfo"] = receive.ToString();
+        
+       	return View();
+       }
+       ```
+
+  9. 流程圖
+
+     - ![img](https://ithelp.ithome.com.tw/upload/images/20220314/201394871haWaGe4iD.png)
+
+- ### 其他
+
+  - #### 測試用卡號: 4000-2211-1111-1111
+
+  - ##### 參考文件
+
+    - [藍新金流 NewebPay API 串接教學](https://blog.hungwin.com.tw/core-mvc-newebpay/)
+    -  [藍新金流API 文件下載區](https://www.newebpay.com/website/Page/content/download_api)
+    - **[[C#\] 智付通SPGateway(藍新)金流串接](https://harry-lin.blogspot.com/2019/01/c-spgateway.html)** 
+    - [.NET 前後分離 Web API 藍新金流串接](https://ithelp.ithome.com.tw/articles/10284330)
