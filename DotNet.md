@@ -3615,14 +3615,15 @@ public class HomeController : Controller
 
 - ###### 設定臨時性外部Domain
 
+- [Ngrok](https://dashboard.ngrok.com/get-started/setup)
+
 - ```powershell
+  ngrok config add-authtoken 2DIhpCpGcqlOblFVpsKxGOKU0gR_2ufySzxBRRtnwAvSqtHtW 登入授權
   ngrok http 3000 //指定本基端Port號對外
   
   //設定完成後回傳一組暫時性網址對應指定PORT
   https://1d18-1-162-108-143.jp.ngrok.io -> http://localhost:3000 
   ```
-
-- 
 
 
 
@@ -3884,3 +3885,126 @@ public class HomeController : Controller
     -  [藍新金流API 文件下載區](https://www.newebpay.com/website/Page/content/download_api)
     - **[[C#\] 智付通SPGateway(藍新)金流串接](https://harry-lin.blogspot.com/2019/01/c-spgateway.html)** 
     - [.NET 前後分離 Web API 藍新金流串接](https://ithelp.ithome.com.tw/articles/10284330)
+
+## 綠界
+
+- ![img](https://developers.ecpay.com.tw/wp-content/uploads/2022/01/%E5%85%A8%E6%96%B9%E4%BD%8D%E4%BB%98%E6%AC%BE%E4%BA%A4%E6%98%93%E6%B5%81%E7%A8%8B2022-5-1024x727.png)
+
+- ### 可用測試帳號
+
+  - ```tex
+    特店測試資料： 模擬銀行3D驗證
+    特店編號(MerchantID)：3002607
+    特店後台登入帳號：stagetest3
+    特店後台登入密碼：test1234
+    特店統一編號：00000000
+    串接金鑰HashKey：pwFHCqoQZGmho4w6
+    串接金鑰HashIV：EkRm7iFT261dpevs
+    
+    平台商測試資料：
+    特店編號(MerchantID)：3002599
+    特店後台登入帳號：stagetest2
+    特店後台登入密碼：test1234
+    身分證末四碼：3609
+    串接金鑰HashKey：spPjZn66i0OhqJsQ
+    串接金鑰HashIV：hT5OJckN45isQTTs
+    ```
+
+- ### 流程
+
+  1. ##### 前端呼叫訂單API，API將所需資訊組合成Form表單回傳給前端
+
+     - ```C#
+       public string GetCallBack(SendToNewebPayIn inModel)
+       {
+           var orderId = Guid.NewGuid().ToString().Replace("-", "").Substring(0, 20);
+           var order = new Dictionary<string, string>
+           {
+               //特店交易編號
+               { "MerchantTradeNo",  orderId},
+       
+               //特店交易時間 yyyy/MM/dd HH:mm:ss
+               { "MerchantTradeDate",  DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")},
+       
+               //交易金額
+               { "TotalAmount",  inModel.Amt},
+       
+               //交易描述
+               { "TradeDesc",  inModel.ItemDesc},
+       
+               //商品名稱
+               { "ItemName", inModel.ItemDesc},
+       
+               //允許繳費有效天數(付款方式為 ATM 時，需設定此值)
+               { "ExpireDate",  "3"},
+       
+               //自訂名稱欄位1
+               { "Email",  inModel.Email},
+       
+               //自訂名稱欄位2
+               { "CustomField2",  ""},
+       
+               //自訂名稱欄位3
+               { "CustomField3",  ""},
+       
+               //自訂名稱欄位4
+               { "CustomField4",  ""},
+       
+               //完成後發通知
+               { "ReturnURL",  $"{Config.GetSection("HostURL").Value}/Home/CallbackNotify?option=ECPay"},
+       
+               //付款完成後導頁
+               { "OrderResultURL", $"{Config.GetSection("HostURL").Value}/Home/CallbackReturn?option=ECPay"},
+       
+       
+               //付款方式為 ATM 時，當使用者於綠界操作結束時，綠界回傳 虛擬帳號資訊至 此URL
+               { "PaymentInfoURL",$"{Config.GetSection("HostURL").Value}/Home/CallbackCustomer?option=ECPay"},
+       
+               //付款方式為 ATM 時，當使用者於綠界操作結束時，綠界會轉址至 此URL。
+               { "ClientRedirectURL",  $"{Config.GetSection("HostURL").Value}/Home/CallbackCustomer?option=ECPay"},
+       
+               //特店編號， 2000132 測試綠界編號
+               { "MerchantID",  "3002599"},
+       
+               //忽略付款方式
+               { "IgnorePayment",  "GooglePay#WebATM#CVS#BARCODE"},
+       
+               //交易類型 固定填入 aio
+               { "PaymentType",  "aio"},
+       
+               //選擇預設付款方式 固定填入 ALL
+               { "ChoosePayment",  "ALL"},
+       
+               //CheckMacValue 加密類型 固定填入 1 (SHA256)
+               { "EncryptType",  "1"},
+           };
+       
+           //檢查碼
+           order["CheckMacValue"] = GetCheckMacValue(order);
+       
+           StringBuilder s = new StringBuilder();
+           s.AppendFormat("<form id='payForm' action='{0}' method='post'>", "https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5");
+           foreach (KeyValuePair<string, string> item in order)
+           {
+               s.AppendFormat("<input type='hidden' name='{0}' value='{1}' />", item.Key, item.Value);
+           }
+       
+           s.Append("</form>");
+       
+           return s.ToString();
+       }
+       ```
+
+  2. ##### 前端直接執行回傳的Form Submit，呼叫藍新API開始導入付款頁面
+
+  3. ##### 付款結束後進入`CallbackReturn`
+
+  4. ##### 卻入付款後支付平台呼叫`CallbackNotify`，此時可針對後續訂單進行處理
+
+  5. ##### ATM付款選項時，金流呼叫`CallbackCustomer` 回傳虛擬帳戶
+
+- ### 其他
+
+  - #### [綠界官網](https://www.ecpay.com.tw/Service/API_Dwnld)
+
+  - ### [「綠界(Ecpay)」金流介接教學](https://weitechshare.blogspot.com/2020/11/ecpay.html)
