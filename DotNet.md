@@ -3618,9 +3618,9 @@ public class HomeController : Controller
 - [Ngrok](https://dashboard.ngrok.com/get-started/setup)
 
 - ```powershell
-  ngrok config add-authtoken 2DIhpCpGcqlOblFVpsKxGOKU0gR_2ufySzxBRRtnwAvSqtHtW 登入授權
-  ngrok http 3000 //指定本基端Port號對外
-  
+  ngrok authtoken 2DIhpCpGcqlOblFVpsKxGOKU0gR_2ufySzxBRRtnwAvSqtHtW 登入授權
+  ngrok http 5000 //指定本基端Port號對外
+  ngrok http 5000 -host-header="localhost:5000"
   //設定完成後回傳一組暫時性網址對應指定PORT
   https://1d18-1-162-108-143.jp.ngrok.io -> http://localhost:3000 
   ```
@@ -3908,6 +3908,9 @@ public class HomeController : Controller
     身分證末四碼：3609
     串接金鑰HashKey：spPjZn66i0OhqJsQ
     串接金鑰HashIV：hT5OJckN45isQTTs
+    
+    一般信用卡測試卡號 : 4311-9522-2222-2222 安全碼 : 222
+    圓夢彈性分期信用卡測試卡號 : 4938-1777-7777-7777 安全碼 : 222　(此組信用卡用來測試圓夢分期服務，圓夢分期服務請參考)
     ```
 
 - ### 流程
