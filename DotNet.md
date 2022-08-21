@@ -3620,7 +3620,7 @@ public class HomeController : Controller
 - ```powershell
   ngrok authtoken 2DIhpCpGcqlOblFVpsKxGOKU0gR_2ufySzxBRRtnwAvSqtHtW 登入授權
   ngrok http 5000 //指定本基端Port號對外
-  ngrok http 5000 -host-header="localhost:5000"
+  ngrok http 5000 --host-header="localhost:5000"
   //設定完成後回傳一組暫時性網址對應指定PORT
   https://1d18-1-162-108-143.jp.ngrok.io -> http://localhost:3000 
   ```
@@ -3631,249 +3631,249 @@ public class HomeController : Controller
 
 ## 藍新金流
 
-- ### 流程
+### 支付流程
 
-  1. ##### 測試環境申請一組帳號。資料可以為虛假(測試用)
+1. ##### 測試環境申請一組帳號。資料可以為虛假(測試用)
 
-  2. ##### 建立店家，並取得相關資訊(商店代號、API串接金鑰)
+2. ##### 建立店家，並取得相關資訊(商店代號、API串接金鑰)
 
-  3. ##### 前端呼叫訂單API，API將所需資訊組合成Form表單回傳給前端
+3. ##### 前端呼叫訂單API，API將所需資訊組合成Form表單回傳給前端
 
-     - ```C#
-       //接收前端傳過來的訂單資料，並組出藍新所需表單內容
-       public IActionResult SendToNewebPay(SendToNewebPayIn inModel)
-       {
-           SendToNewebPayOut outModel = new SendToNewebPayOut();
-       
-           //建立藍新所需資料Model
-           List<KeyValuePair<string, string>> TradeInfo = new List<KeyValuePair<string, string>>();
-           // 商店代號，步驟2取得
-           TradeInfo.Add(new KeyValuePair<string, string>("MerchantID", inModel.MerchantID));
-           // 回傳格式
-           TradeInfo.Add(new KeyValuePair<string, string>("RespondType", "String"));
-           // TimeStamp
-           TradeInfo.Add(new KeyValuePair<string, string>("TimeStamp", DateTimeOffset.Now.ToOffset(new TimeSpan(8, 0, 0)).ToUnixTimeSeconds().ToString()));
-           // 串接程式版本
-           TradeInfo.Add(new KeyValuePair<string, string>("Version", "2.0"));
-           // 商店訂單編號
-           TradeInfo.Add(new KeyValuePair<string, string>("MerchantOrderNo", inModel.MerchantOrderNo));
-           // 訂單金額
-           TradeInfo.Add(new KeyValuePair<string, string>("Amt", inModel.Amt));
-           // 商品資訊
-           TradeInfo.Add(new KeyValuePair<string, string>("ItemDesc", inModel.ItemDesc));
-           // 繳費有效期限(適用於非即時交易)
-           TradeInfo.Add(new KeyValuePair<string, string>("ExpireDate", inModel.ExpireDate));
-           
-           // 藍新支付頁面失敗或完成後，系統導回的路徑位置(這邊會回傳到CallbackReturn API)
-           TradeInfo.Add(new KeyValuePair<string, string>("ReturnURL", "https://1d18-1-162-108-143.jp.ngrok.io/Home/CallbackReturn"));
-           // 當使用者支付成功後，藍新系統會透過幕後方式回傳給商店相關支付結果資料
-           TradeInfo.Add(new KeyValuePair<string, string>("NotifyURL", "https://1d18-1-162-108-143.jp.ngrok.io/Home/CallbackNotify"));
-           // 系統取號後以 form post 方式將結果導回商店指定的網址
-           TradeInfo.Add(new KeyValuePair<string, string>("CustomerURL", "https://1d18-1-162-108-143.jp.ngrok.io/Home/CallbackCustomer"));
-           // 支付取消返回商店網址
-           TradeInfo.Add(new KeyValuePair<string, string>("ClientBackURL", inModel.ClientBackURL));
-               
-           
-           // 付款人電子信箱
-           TradeInfo.Add(new KeyValuePair<string, string>("Email", inModel.Email));
-           // 付款人電子信箱 是否開放修改(1=可修改 0=不可修改)
-           TradeInfo.Add(new KeyValuePair<string, string>("EmailModify", "0"));
-       
-           //開啟信用卡一次付清選項
-           TradeInfo.Add(new KeyValuePair<string, string>("CREDIT", "1"));
-       
-           //ATM 付款
-           if (inModel.ChannelID == "VACC")
-           {
-               TradeInfo.Add(new KeyValuePair<string, string>("VACC", "1"));
-           }
-           string TradeInfoParam = string.Join("&", TradeInfo.Select(x => $"{x.Key}={x.Value}"));
-       
-           // API 傳送欄位
-           // 商店代號步驟2取得
-           outModel.MerchantID = inModel.MerchantID;
-           // 串接程式版本
-           outModel.Version = "2.0";
-           //交易資料 AES 加解密
-           IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
-           string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
-           string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
-           string TradeInfoEncrypt = EncryptAESHex(TradeInfoParam, HashKey, HashIV);
-           
-           //交易資料加密
-           outModel.TradeInfo = TradeInfoEncrypt;
-           //交易資料 SHA256 加密
-           outModel.TradeSha = EncryptSHA256($"HashKey={HashKey}&{TradeInfoEncrypt}&HashIV={HashIV}");
-       
-           // 將model 轉換為List<KeyValuePair<string, string>>, null值不轉
-           List<KeyValuePair<string, string>> postData = LambdaUtil.ModelToKeyValuePairList<SendToNewebPayOut>(outModel);
-       
-           Response.Clear();
-       
-           StringBuilder s = new StringBuilder();
-           s.Append("<html>");
-           s.AppendFormat("<body onload='document.forms[\"form\"].submit()'>");
-           s.AppendFormat("<form name='form' action='{0}' method='post'>", "https://ccore.newebpay.com/MPG/mpg_gateway");
-           foreach (KeyValuePair<string, string> item in postData)
-           {
-               s.AppendFormat("<input type='hidden' name='{0}' value='{1}' />", item.Key, item.Value);
-           }
-       
-           StringBuilder s = new StringBuilder();
-           s.AppendFormat("<form id='payForm' action='{0}' method='post'>", "https://ccore.newebpay.com/MPG/mpg_gateway");
-           foreach (KeyValuePair<string, string> item in postData)
-           {
-               s.AppendFormat("<input type='hidden' name='{0}' value='{1}' />", item.Key, item.Value);
-           }
-       
-           s.Append("</form>");
-       
-           return Json(s.ToString());
-       }
-       ```
+   - ```C#
+     //接收前端傳過來的訂單資料，並組出藍新所需表單內容
+     public IActionResult SendToNewebPay(SendToNewebPayIn inModel)
+     {
+         SendToNewebPayOut outModel = new SendToNewebPayOut();
+     
+         //建立藍新所需資料Model
+         List<KeyValuePair<string, string>> TradeInfo = new List<KeyValuePair<string, string>>();
+         // 商店代號，步驟2取得
+         TradeInfo.Add(new KeyValuePair<string, string>("MerchantID", inModel.MerchantID));
+         // 回傳格式
+         TradeInfo.Add(new KeyValuePair<string, string>("RespondType", "String"));
+         // TimeStamp
+         TradeInfo.Add(new KeyValuePair<string, string>("TimeStamp", DateTimeOffset.Now.ToOffset(new TimeSpan(8, 0, 0)).ToUnixTimeSeconds().ToString()));
+         // 串接程式版本
+         TradeInfo.Add(new KeyValuePair<string, string>("Version", "2.0"));
+         // 商店訂單編號
+         TradeInfo.Add(new KeyValuePair<string, string>("MerchantOrderNo", inModel.MerchantOrderNo));
+         // 訂單金額
+         TradeInfo.Add(new KeyValuePair<string, string>("Amt", inModel.Amt));
+         // 商品資訊
+         TradeInfo.Add(new KeyValuePair<string, string>("ItemDesc", inModel.ItemDesc));
+         // 繳費有效期限(適用於非即時交易)
+         TradeInfo.Add(new KeyValuePair<string, string>("ExpireDate", inModel.ExpireDate));
+         
+         // 藍新支付頁面失敗或完成後，系統導回的路徑位置(這邊會回傳到CallbackReturn API)
+         TradeInfo.Add(new KeyValuePair<string, string>("ReturnURL", "https://1d18-1-162-108-143.jp.ngrok.io/Home/CallbackReturn"));
+         // 當使用者支付成功後，藍新系統會透過幕後方式回傳給商店相關支付結果資料
+         TradeInfo.Add(new KeyValuePair<string, string>("NotifyURL", "https://1d18-1-162-108-143.jp.ngrok.io/Home/CallbackNotify"));
+         // 系統取號後以 form post 方式將結果導回商店指定的網址
+         TradeInfo.Add(new KeyValuePair<string, string>("CustomerURL", "https://1d18-1-162-108-143.jp.ngrok.io/Home/CallbackCustomer"));
+         // 支付取消返回商店網址
+         TradeInfo.Add(new KeyValuePair<string, string>("ClientBackURL", inModel.ClientBackURL));
+             
+         
+         // 付款人電子信箱
+         TradeInfo.Add(new KeyValuePair<string, string>("Email", inModel.Email));
+         // 付款人電子信箱 是否開放修改(1=可修改 0=不可修改)
+         TradeInfo.Add(new KeyValuePair<string, string>("EmailModify", "0"));
+     
+         //開啟信用卡一次付清選項
+         TradeInfo.Add(new KeyValuePair<string, string>("CREDIT", "1"));
+     
+         //ATM 付款
+         if (inModel.ChannelID == "VACC")
+         {
+             TradeInfo.Add(new KeyValuePair<string, string>("VACC", "1"));
+         }
+         string TradeInfoParam = string.Join("&", TradeInfo.Select(x => $"{x.Key}={x.Value}"));
+     
+         // API 傳送欄位
+         // 商店代號步驟2取得
+         outModel.MerchantID = inModel.MerchantID;
+         // 串接程式版本
+         outModel.Version = "2.0";
+         //交易資料 AES 加解密
+         IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
+         string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+         string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
+         string TradeInfoEncrypt = EncryptAESHex(TradeInfoParam, HashKey, HashIV);
+         
+         //交易資料加密
+         outModel.TradeInfo = TradeInfoEncrypt;
+         //交易資料 SHA256 加密
+         outModel.TradeSha = EncryptSHA256($"HashKey={HashKey}&{TradeInfoEncrypt}&HashIV={HashIV}");
+     
+         // 將model 轉換為List<KeyValuePair<string, string>>, null值不轉
+         List<KeyValuePair<string, string>> postData = LambdaUtil.ModelToKeyValuePairList<SendToNewebPayOut>(outModel);
+     
+         Response.Clear();
+     
+         StringBuilder s = new StringBuilder();
+         s.Append("<html>");
+         s.AppendFormat("<body onload='document.forms[\"form\"].submit()'>");
+         s.AppendFormat("<form name='form' action='{0}' method='post'>", "https://ccore.newebpay.com/MPG/mpg_gateway");
+         foreach (KeyValuePair<string, string> item in postData)
+         {
+             s.AppendFormat("<input type='hidden' name='{0}' value='{1}' />", item.Key, item.Value);
+         }
+     
+         StringBuilder s = new StringBuilder();
+         s.AppendFormat("<form id='payForm' action='{0}' method='post'>", "https://ccore.newebpay.com/MPG/mpg_gateway");
+         foreach (KeyValuePair<string, string> item in postData)
+         {
+             s.AppendFormat("<input type='hidden' name='{0}' value='{1}' />", item.Key, item.Value);
+         }
+     
+         s.Append("</form>");
+     
+         return Json(s.ToString());
+     }
+     ```
 
-  4. ##### 前端直接執行回傳的Form Submit，呼叫藍新API開始導入付款頁面
+4. ##### 前端直接執行回傳的Form Submit，呼叫藍新API開始導入付款頁面
 
-     - ```javascript
-       $.ajax({
-          url: '@Url.Content("~/Home/SendToNewebPay")',
-          method: 'POST',
-          dataType: 'json',
-          data: { inModel: postData, __RequestVerificationToken: $('@Html.AntiForgeryToken()').val() },
-          success: function(returnObj) {
-              /*呼叫付款API後，取得API所彙整之付款form表單
-              直接執行表單submit事件觸發導頁*/
-              $("#divContent").html(returnObj);
-              $("#payForm").submit();
-          },
-          error: function(err) {
-          alert(err.status + " " + err.statusText + '\n' + err.responseText);
-          }
-       });
-       ```
+   - ```javascript
+     $.ajax({
+        url: '@Url.Content("~/Home/SendToNewebPay")',
+        method: 'POST',
+        dataType: 'json',
+        data: { inModel: postData, __RequestVerificationToken: $('@Html.AntiForgeryToken()').val() },
+        success: function(returnObj) {
+            /*呼叫付款API後，取得API所彙整之付款form表單
+            直接執行表單submit事件觸發導頁*/
+            $("#divContent").html(returnObj);
+            $("#payForm").submit();
+        },
+        error: function(err) {
+        alert(err.status + " " + err.statusText + '\n' + err.responseText);
+        }
+     });
+     ```
 
-  5. ##### 轉至付款頁面進行處理，付款選項會根據步驟3中所建立的參數決定(如VACC,CREDIT)
+5. ##### 轉至付款頁面進行處理，付款選項會根據步驟3中所建立的參數決定(如VACC,CREDIT)
 
-     ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202208132334128.png)
+   ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202208132334128.png)
 
-  6. ##### 加入支付完成返回商店網址方法
+6. ##### 加入支付完成返回商店網址方法
 
-     - ###### 送出訂單 API 時會跳轉至藍新金流付款畫面，當使用者完成付款動作時，藍新金流會回傳呼叫我們的「支付完成返回商店網址」，這裡會接收使用者付款的狀態，我們可以從回傳資訊內查詢使用者是否已付款。
+   - ###### 送出訂單 API 時會跳轉至藍新金流付款畫面，當使用者完成付款動作時，藍新金流會回傳呼叫我們的「支付完成返回商店網址」，這裡會接收使用者付款的狀態，我們可以從回傳資訊內查詢使用者是否已付款。
 
-     - ###### 接收方法裡面要做的就是解密資料，我們傳送前有加密後再傳送，接收時也需要解密才能看到資料，解密方法是 AES
+   - ###### 接收方法裡面要做的就是解密資料，我們傳送前有加密後再傳送，接收時也需要解密才能看到資料，解密方法是 AES
 
-     - ```C#
-       /// <summary>
-       /// 支付完成返回網址
-       /// </summary>
-       /// <returns></returns>
-       public IActionResult CallbackReturn()
-       {
-       	StringBuilder receive = new StringBuilder();
-       	foreach (var item in Request.Form)
-       	{
-       		receive.AppendLine(item.Key + "=" + item.Value + "<br>");
-       	}
-           //接收參數
-       	ViewData["ReceiveObj"] = receive.ToString();
+   - ```C#
+     /// <summary>
+     /// 支付完成返回網址
+     /// </summary>
+     /// <returns></returns>
+     public IActionResult CallbackReturn()
+     {
+     	StringBuilder receive = new StringBuilder();
+     	foreach (var item in Request.Form)
+     	{
+     		receive.AppendLine(item.Key + "=" + item.Value + "<br>");
+     	}
+         //接收參數
+     	ViewData["ReceiveObj"] = receive.ToString();
+      
+     	IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
+     	string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+     	string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
         
-       	IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
-       	string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
-       	string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
-          
-       	string TradeInfoDecrypt = DecryptAESHex(Request.Form["TradeInfo"], HashKey, HashIV);
-       	NameValueCollection decryptTradeCollection = HttpUtility.ParseQueryString(TradeInfoDecrypt);
-       	receive.Length = 0;
-       	foreach (String key in decryptTradeCollection.AllKeys)
-       	{
-       		receive.AppendLine(key + "=" + decryptTradeCollection[key] + "<br>");
-       	}
-           
-       	// 交易訊息
-       	ViewData["TradeInfo"] = receive.ToString();
-        
-       	return View();
-       }
-       ```
+     	string TradeInfoDecrypt = DecryptAESHex(Request.Form["TradeInfo"], HashKey, HashIV);
+     	NameValueCollection decryptTradeCollection = HttpUtility.ParseQueryString(TradeInfoDecrypt);
+     	receive.Length = 0;
+     	foreach (String key in decryptTradeCollection.AllKeys)
+     	{
+     		receive.AppendLine(key + "=" + decryptTradeCollection[key] + "<br>");
+     	}
+         
+     	// 交易訊息
+     	ViewData["TradeInfo"] = receive.ToString();
+      
+     	return View();
+     }
+     ```
 
-  7. ##### 加入商店取號網址方法
+7. ##### 加入商店取號網址方法
 
-     - ###### 商店取號網址會用在使用者選擇 ATM 付款時，藍新金流會呼叫這個網址，告知我們使用者要匯款的銀行代碼和帳號是多少，我們可以顯示銀行代碼和帳號給使用者知道
+   - ###### 商店取號網址會用在使用者選擇 ATM 付款時，藍新金流會呼叫這個網址，告知我們使用者要匯款的銀行代碼和帳號是多少，我們可以顯示銀行代碼和帳號給使用者知道
 
-     - ###### 我們可以從 BankCode 和 CodeNo 知道使用者要匯款的銀行代碼和帳號。
+   - ###### 我們可以從 BankCode 和 CodeNo 知道使用者要匯款的銀行代碼和帳號。
 
-     - ```C#
-       /// <summary>
-       /// 商店取號網址
-       /// </summary>
-       /// <returns></returns>
-       public IActionResult CallbackCustomer()
-       {
-       	// 接收參數
-       	StringBuilder receive = new StringBuilder();
-       	foreach (var item in Request.Form)
-       	{
-       		receive.AppendLine(item.Key + "=" + item.Value + "<br>");
-       	}
-       	ViewData["ReceiveObj"] = receive.ToString();
-        
-       	// 解密訊息
-       	IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
-       	string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
-       	string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
-       	string TradeInfoDecrypt = DecryptAESHex(Request.Form["TradeInfo"], HashKey, HashIV);
-       	NameValueCollection decryptTradeCollection = HttpUtility.ParseQueryString(TradeInfoDecrypt);
-       	receive.Length = 0;
-       	foreach (String key in decryptTradeCollection.AllKeys)
-       	{
-       		receive.AppendLine(key + "=" + decryptTradeCollection[key] + "<br>");
-       	}
-       	ViewData["TradeInfo"] = receive.ToString();
-       	return View();
-       }
-       ```
+   - ```C#
+     /// <summary>
+     /// 商店取號網址
+     /// </summary>
+     /// <returns></returns>
+     public IActionResult CallbackCustomer()
+     {
+     	// 接收參數
+     	StringBuilder receive = new StringBuilder();
+     	foreach (var item in Request.Form)
+     	{
+     		receive.AppendLine(item.Key + "=" + item.Value + "<br>");
+     	}
+     	ViewData["ReceiveObj"] = receive.ToString();
+      
+     	// 解密訊息
+     	IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
+     	string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+     	string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
+     	string TradeInfoDecrypt = DecryptAESHex(Request.Form["TradeInfo"], HashKey, HashIV);
+     	NameValueCollection decryptTradeCollection = HttpUtility.ParseQueryString(TradeInfoDecrypt);
+     	receive.Length = 0;
+     	foreach (String key in decryptTradeCollection.AllKeys)
+     	{
+     		receive.AppendLine(key + "=" + decryptTradeCollection[key] + "<br>");
+     	}
+     	ViewData["TradeInfo"] = receive.ToString();
+     	return View();
+     }
+     ```
 
-  8. ##### 加入支付通知網址方法
+8. ##### 加入支付通知網址方法
 
-     - ###### 當使用者實際付款完成時，不管是信用卡、ATM 或超商付款，會收到的通知
+   - ###### 當使用者實際付款完成時，不管是信用卡、ATM 或超商付款，會收到的通知
 
-     - ###### 例如使用者選擇 ATM 付款時，任何時間在 ATM 完成付款，我們從這方法收到通知後，寫入資料庫內紀錄使用者已付款就好。
+   - ###### 例如使用者選擇 ATM 付款時，任何時間在 ATM 完成付款，我們從這方法收到通知後，寫入資料庫內紀錄使用者已付款就好。
 
-       ```C#
-       /// <summary>
-       /// 支付通知網址
-       /// </summary>
-       /// <returns></returns>
-       public IActionResult CallbackNotify()
-       {
-       	// 接收參數
-       	StringBuilder receive = new StringBuilder();
-       	foreach (var item in Request.Form)
-       	{
-       		receive.AppendLine(item.Key + "=" + item.Value + "<br>");
-       	}
-       	ViewData["ReceiveObj"] = receive.ToString();
-        
-       	// 解密訊息
-       	IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
-       	string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
-       	string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
-       	string TradeInfoDecrypt = DecryptAESHex(Request.Form["TradeInfo"], HashKey, HashIV);
-       	NameValueCollection decryptTradeCollection = HttpUtility.ParseQueryString(TradeInfoDecrypt);
-       	receive.Length = 0;
-       	foreach (String key in decryptTradeCollection.AllKeys)
-       	{
-       		receive.AppendLine(key + "=" + decryptTradeCollection[key] + "<br>");
-       	}
-       	ViewData["TradeInfo"] = receive.ToString();
-        
-       	return View();
-       }
-       ```
+     ```C#
+     /// <summary>
+     /// 支付通知網址
+     /// </summary>
+     /// <returns></returns>
+     public IActionResult CallbackNotify()
+     {
+     	// 接收參數
+     	StringBuilder receive = new StringBuilder();
+     	foreach (var item in Request.Form)
+     	{
+     		receive.AppendLine(item.Key + "=" + item.Value + "<br>");
+     	}
+     	ViewData["ReceiveObj"] = receive.ToString();
+      
+     	// 解密訊息
+     	IConfiguration Config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
+     	string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+     	string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
+     	string TradeInfoDecrypt = DecryptAESHex(Request.Form["TradeInfo"], HashKey, HashIV);
+     	NameValueCollection decryptTradeCollection = HttpUtility.ParseQueryString(TradeInfoDecrypt);
+     	receive.Length = 0;
+     	foreach (String key in decryptTradeCollection.AllKeys)
+     	{
+     		receive.AppendLine(key + "=" + decryptTradeCollection[key] + "<br>");
+     	}
+     	ViewData["TradeInfo"] = receive.ToString();
+      
+     	return View();
+     }
+     ```
 
-  9. 流程圖
+9. 流程圖
 
-     - ![img](https://ithelp.ithome.com.tw/upload/images/20220314/201394871haWaGe4iD.png)
+   - ![img](https://ithelp.ithome.com.tw/upload/images/20220314/201394871haWaGe4iD.png)
 
 - ### 其他
 
@@ -3885,6 +3885,230 @@ public class HomeController : Controller
     -  [藍新金流API 文件下載區](https://www.newebpay.com/website/Page/content/download_api)
     - **[[C#\] 智付通SPGateway(藍新)金流串接](https://harry-lin.blogspot.com/2019/01/c-spgateway.html)** 
     - [.NET 前後分離 Web API 藍新金流串接](https://ithelp.ithome.com.tw/articles/10284330)
+
+
+
+### 訂閱流程
+
+- #### 系統流程說明
+
+  1. #### Client發起定期定額支付請求
+
+  2. #### 系統依據訂單內容建置藍新發送格式(Form格式)
+
+     - ###### RespondType: JSON/ String
+
+     - ###### TimeStamp: 系統時間搓記
+
+     - ###### Version: 串接版本
+
+       - 帶入 1.0 版本，則[背面末三碼]將為 必填欄位。
+       - 帶入 1.1 版本，則[背面末三碼]將為 非必填
+       - 帶入 1.2 版本，則增加 『PeriodFirstdate』欄位，此欄位為非 必填 
+       - 帶入 1.3 版本，『Paymentmethod』 欄位新增 UNIONPAY = 銀聯卡回傳參數
+
+     - ###### LangType: 語系，預設中文
+
+     - ###### MerOrderNo: 系統訂單編號
+
+     - ###### ProdDesc: 產品名稱
+
+     - ###### PeriodAmt: 委託金額(每期付款金額)
+
+     - ###### PeriodType: 週期類別
+
+       - D=固定天期制 (2-999 天)
+       - W=每週 
+       - M=每月
+       - Y=每年
+
+     - ###### PeriodPoint: 交易週期授權時間
+
+       - 當週期參數為 D 時，此欄位值限為 數字 2~999，以授權日期隔日起算
+         -  例：數值為 2，則表示每隔兩天會執 行一次委託單。
+       - 當週期參數為 W 時，此欄位值限為 數字 1~7
+         - 數字 1~7 表示每週一~ 週日。
+       - 當週期參數為 M 時，此欄位值限為 數字 01~31
+         - 數字 01~31 表示每月 1 號~31 號
+         - 若當月沒該日期則由該 月的最後一天做為扣款日。
+       - 5.當週期參數為 Y 時，此欄位值格式為 MMDD。
+
+     - ###### PeriodStartType: 檢查卡號模式
+
+       - １=立即執行十元授權 
+
+         - （因部分發卡銀行會阻擋一元交 易，因此調整為十元）
+         - 委託建立當下系統將發動一筆十 元信用卡授權交易，此交易授權 成功後，系統將立即自動取消授 權，付款人將不會被扣款
+
+       - ２=立即執行委託金額授權
+
+         - 委託單建立當下，立即執行委託 金額授權。
+
+         - ###### 如果執行日恰好等於第一期授權日，則視為第一期授權
+
+         - ###### 若執行日不等於第一期授權日時，則自動曾為第一次授權期數會多一期
+
+       - ３=不檢查信用卡資訊，不授權
+
+         - 委託單自動成立。
+         - 首期授權時授權失敗，則系統會 自動終止該張委託單。
+
+     - ```C#
+       public string GetPeriodCallBack(SendToNewebPayIn inModel)
+       {
+           // 藍新金流線上付款
+       
+           var TradeInfo = new Dictionary<string, object> {
+               // 回傳格式
+               { "RespondType", "JSON"},
+               // TimeStamp
+               { "TimeStamp", DateTimeOffset.Now.ToOffset(new TimeSpan(8, 0, 0)).ToUnixTimeSeconds().ToString()},
+               // 串接程式版本
+               { "Version", "1.0"},
+               // 訂單編號
+               { "MerOrderNo", inModel.MerchantOrderNo},
+               // 商品資訊
+               { "ProdDesc", inModel.ItemDesc},
+               // 定期金額
+               { "PeriodAmt", inModel.Amt},
+               // 週期類別 年/月/日
+               { "PeriodType", "M"},
+               // 交易週期授權時間 ex.每周禮拜幾、每月幾號、每隔幾天、每年的MMDD
+               {"PeriodPoint", DateTime.Now.Day.ToString() },
+               // 檢查卡號模式
+               { "PeriodStartType", "2"},
+               // 授權期數
+               { "PeriodTimes", "10"},
+               // 付款人電子信箱
+               { "PayerEmail", inModel.Email},
+               // 是否開啟付款人資訊
+               { "PaymentInfo", 'N'},
+               // 是否開啟付款人資訊
+               {"OrderInfo", 'N' },
+               // 支付通知網址
+               {"NotifyURL", $"{Config.GetSection("HostURL").Value}/Notify/NewebPayPeriodNotify" },
+               // 是否開放使用者修改Mail
+               {"EmailModify", "0" }
+           };
+       
+           string TradeInfoParam = string.Join("&", TradeInfo.Select(x => $"{x.Key}={x.Value}"));
+       
+       
+           SendToNewebPayPeriod outModel = new SendToNewebPayPeriod();
+           //交易資料 AES 加解密
+           string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+           string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
+           string TradeInfoEncrypt = EncryptAESHex(TradeInfoParam, HashKey, HashIV);
+       
+       
+           StringBuilder s = new StringBuilder();
+           s.AppendFormat("<form id='payForm' action='{0}' method='post'>", "https://ccore.spgateway.com/MPG/period");
+           s.AppendFormat("<input type='hidden' name='{0}' value='{1}' />", "MerchantID_", Config.GetSection("MerchantID").Value);
+           s.AppendFormat("<input type='hidden' name='{0}' value='{1}' />", "PostData_", EncryptAESHex(TradeInfoParam, HashKey, HashIV));
+           s.Append("</form>");
+       
+           return s.ToString();
+       }
+       ```
+
+  3. #### Client接收Server端回傳格式後開始呼叫藍新支付(商店以前端「Form Post」方式傳送交易資料至藍新金流進行交易。)
+
+     - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202208211452855.png)
+
+  4. #### 藍新依據設定開始進行信用卡授權測試
+
+  5. #### 信用卡端回傳信用卡驗證結果
+
+  6. #### 藍新依據步驟2 內設定的`NotifyURL`將結果回傳給Server端
+
+     - ###### 當付款人每期執行信用卡授權交易完 成後，以 Form Post 方式通知商店授權結果。
+
+     - ###### 回傳結果會以AES加密的形式夾帶在`Period`字串中，需透過商店的`HashKey`、`HashIV`進行解密
+
+     - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202208211425705.png)
+
+     - ##### 回傳內容包含`PeriodNo` 代表藍新的委託單號，後續須透過此單號進行狀態修改(暫停、取消訂閱)
+
+       - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202208211427382.png)
+
+  7. #### 藍新依據步驟2內設定的`ReturnURL`將頁面進行導頁
+
+     - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202208211428112.png)
+
+- #### 流程圖
+
+  - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202208211429154.png)
+
+### 訂閱變更流程
+
+- #### 系統流程
+
+  1. ##### 向提出商務人員或藍新金流客戶服務中心提出申請，由藍新金流審核並設 定完成後，商店始得使用本功能
+
+  2. ##### 透過api向藍新發送狀態變更參數(暫停、取消、重新開始)
+
+     - ###### 透過訂單編號`MerOrderNo`、委託單號`委託單號`進行該委託單狀態變更
+
+     - ```c#
+       public async Task<string> GetUpdatePeriodCallBackAsync(string orderNo, string PeriodNo)
+       {
+           // 藍新金流線上付款
+       
+           var TradeInfo = new Dictionary<string, object> {
+               // 回傳格式
+               { "RespondType", "JSON"},
+               // TimeStamp
+               { "TimeStamp", DateTimeOffset.Now.ToOffset(new TimeSpan(8, 0, 0)).ToUnixTimeSeconds().ToString()},
+               // 固定帶 1.0
+               { "Version", "1.0"},
+               // 訂單編號
+               { "MerOrderNo", orderNo},
+               // 委託單號
+               { "PeriodNo", PeriodNo},
+               // 委託狀態
+               { "AlterType", "terminate"},
+           };
+       
+           string TradeInfoParam = string.Join("&", TradeInfo.Select(x => $"{x.Key}={x.Value}"));
+       
+           SendToNewebPayPeriod outModel = new SendToNewebPayPeriod();
+           //交易資料 AES 加解密
+           string HashKey = Config.GetSection("HashKey").Value;//API 串接金鑰
+           string HashIV = Config.GetSection("HashIV").Value;//API 串接密碼
+       
+           var content = new FormUrlEncodedContent(new[]
+           {
+               new KeyValuePair<string, string>("MerchantID_", Config.GetSection("MerchantID").Value),
+               new KeyValuePair<string, string>("PostData_", EncryptAESHex(TradeInfoParam, HashKey, HashIV))
+           });
+       
+           using (HttpClient client = new HttpClient())
+           {
+               HttpResponseMessage response = await client.PostAsync("https://ccore.newebpay.com/MPG/period/AlterStatus", content);
+               var result = await response.Content.ReadAsStringAsync();
+               var obj = JsonConvert.DeserializeObject<PeriodReturn>(result);
+               return DecryptAESHex(obj.Period, HashKey, HashIV);
+           }
+       
+           return "";
+       }
+       ```
+
+  3. #####  回傳變更結果
+
+     - ###### 回傳結果會以AES加密的形式夾帶在`Period`字串中，需透過商店的`HashKey`、`HashIV`進行解密
+
+     - ###### 若成功則回傳"SUCCESS"，失敗則回傳錯誤代碼
+
+       - ![img](https://raw.githubusercontent.com/Sean2416/Pic/master/img/202208211512611.png)
+
+       - ###### PER10074: 本 API 需由藍新金流審核通過後才得以使用，若有串接需求請聯繫客戶服務中心或商務 經理。
+
+- #### 流程圖
+
+  - ![image-20220821150534205](C:\Users\User\AppData\Roaming\Typora\typora-user-images\image-20220821150534205.png)
+
+
 
 ## 綠界
 
@@ -4010,4 +4234,6 @@ public class HomeController : Controller
 
   - #### [綠界官網](https://www.ecpay.com.tw/Service/API_Dwnld)
 
-  - ### [「綠界(Ecpay)」金流介接教學](https://weitechshare.blogspot.com/2020/11/ecpay.html)
+  - #### [「綠界(Ecpay)」金流介接教學](https://weitechshare.blogspot.com/2020/11/ecpay.html)
+  
+  - #### [測試後台](https://vendor-stage.ecpay.com.tw/Frame/Index)
