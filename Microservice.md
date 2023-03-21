@@ -204,6 +204,18 @@
       ENV VAR_NAME $VAR_NAME
       ```
 
+- ##### 在起Container時指定環境變數
+
+  - ###### -e : 帶入環境變數
+
+  - `docker run -e VAR1=value1 -e VAR2=value2 my_image`
+
+  - ```powershell
+    docker run -e ASPNETCORE_ENVIRONMENT=Development -d -p 8088:8088 my_image
+    ```
+
+    
+
 - ##### 在 .NET Core中，使用 `Environment.GetEnvironmentVariable()` 方法来获取这些环境变量的值。
 
   - ```C#
