@@ -313,3 +313,28 @@ func (p *Person) UpdatePerson(n int) {
 
 ```
 
+## GOROOT
+
+- ##### 指定 Go 的安裝路徑，即 Go 的根目錄。當您安裝 Go 編譯器時，它會自動設置 GOROOT 環境變量。通常情況下，您不需要手動設置它，除非您想使用不同版本的 Go。
+
+## GOPATH
+
+- ##### 指定您的工作空間的路徑，即包含您的 Go 程序源代碼、庫以及其他相關文件的目錄。GOPATH 環境變量對於安裝和使用第三方庫非常重要。在 GOPATH 中，會有三個子目錄：src、pkg 和 bin。src 目錄用於存放源代碼，pkg 目錄用於存放編譯好的庫文件，而 bin 目錄則用於存放可執行文件。
+
+- ##### 執行Golang需要存取套件時，會先去GOROOT路徑下的src資料夾找同等於我們在程式碼中import的路徑下去找有沒有這個資料夾，而這資料夾裡面就是包含了所有有關於該套件的程式庫
+
+- ##### 如果在GOROOT路徑下沒有找到，則會往GOPATH路徑下的src資料夾找同等於我們在程式碼中import的路徑下去找有沒有這個資料夾。
+
+- ##### 變更設定值 `setx GOPATH C:\Users\leochu\Git\GoPractice`
+
+## Go Modules
+
+- ##### Go Modules解決方式很像是Java看到Maven的做法，將第三方程式庫儲存在本地的空間，並且給程式去引用。
+
+- ##### 我們可以不需要把專案程式碼放在 `$GOPATH/src` 中開發，此外還能管理套件相依性，相當便利
+
+## 安裝套件
+
+- ##### `go get github.com/mozillazg/go-pinyin`
+
+- ##### 需要使用Go Modules，並且會直接產生關聯(類似前端Package.json)
