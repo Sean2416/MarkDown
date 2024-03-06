@@ -1649,6 +1649,70 @@
 
    
 
+# DDD
+
+- ##### 以領域知識為核心建立的模型，領域專家與開發人員，可以透過這個**模型**進行交流。
+
+## User Interface
+
+- ##### 從字面意思上理解，就是 UI 介面。
+
+## 應用層 (Application Layer)
+
+- ##### `定義軟體要完成的任務，並且指揮表達領域概念的對象來解決問題。`
+
+- ##### 整套協調任務、分配工作的流程，就是「應用」
+
+- ##### 串聯領域層的所有事件，但各別邏輯收在領域層
+
+- ##### 只需要知道，要完成他的流程，需要調用領域層的哪個物件與服務。
+
+  - ###### 「應用層」只管流程步驟，本身並不介入任務的實際執行。
+
+## 領域層 (Domain Layer)
+
+- ##### 負責實現業務邏輯
+
+- ### 實體(Entity)
+
+  - ##### 包含ID的物件，通常代表資料庫的實體
+
+- ### 值對象(Value Object)
+
+  - ##### 類似Entity，不包含ID
+
+- ### 服務(Service)
+
+  - ###### 領域中的動作，不屬於任何對象，卻代表了一個重要行為，此種行為通常會跨越若干的對象。將此行為加入到任一對象中會破壞對象。
+
+## 範例
+
+- ##### 以訂單流程為例
+
+  1. ###### 使用者透過Web進行下單動作
+
+  2. ###### 建立訂單、檢查商品、扣庫存、檢查優惠活動....
+
+- ##### User Interface
+
+  - ###### 透過Web進行下單動作
+
+- ##### 應用層
+
+  - ###### 串聯領域層中的各項邏輯
+
+- ##### 領域層
+
+  - ###### 檢查商品: 檢核庫存是否充足、扣除對應數量商品
+
+  - ###### 計算優惠活動: 依據訂單內容計算折扣金額
+
+  - ###### 成立訂單: 檢查各項資料是否充足、成立訂單
+
+  
+
+
+
 # NET
 
 ## Dependency Injection
@@ -2697,261 +2761,308 @@ public class HomeController : Controller
 
 
 
-# Others
+## ORM
 
-## SQL 
+### EF Core
 
-### 索引
+- ##### 優點
 
-- #### 叢集索引
+  - 將Table抽象畫成物件，
+  - 抽象化資料存取層，提供對象關聯映射（ORM）功能，讓開發人員可以使用物件模型而不是 SQL。
+  - 具有 LINQ（Language Integrated Query）等強大的查詢功能，使得資料存取更加簡單和直觀。
+  - 提供 CRUD 操作的自動生成和維護，減少了重複的程式碼。
+  - 支援不同的資料庫供應商，並提供了一定程度的跨平台支援。
 
-  - ######  當資料表設定了「叢集索引」，則資料表「實體資料列」的順序會依據叢集索引的值做排序
+- 缺點
 
-  - ######  每一資料表只能有一個「叢集索引」
+  - 生成的 SQL 查詢可能不是最佳的，有時可能會導致性能問題。
+  - 雖然 EF Core 已經做了很多改進，但在某些情況下，仍然可能出現性能比較差的情況。
+  - 對於大型資料集，或者需要高度優化的查詢，可能需要手動調整生成的 SQL 或使用原生 SQL。
 
-  - ###### SQL Server  資料表的**主索鍵**（PK），預設為「叢集索引」且是唯一的（Unique）
+- ##### 基本範例
 
-  - ###### B-Tree結構
+  - ##### 創建Entity
 
-  - ###### 叢集索引插入資料時速度較慢（時間花費在「物理存儲的排序」上，要找到對的位置進行插入）
+    - ```c#
+      public interface BaseEntity
+      {
+          DateTime CreatedAt { get; set; }
+          DateTime ModifiedAt { get; set; }
+      }
+      
+      public class User : BaseEntity
+      {
+          public int Id { get; set; }
+          public string Name { get; set; }
+          public DateTime CreatedAt { get; set; }
+          public DateTime ModifiedAt { get; set; }
+      }
+      
+      public class Role : BaseEntity
+      {
+          public int Id { get; set; }
+          public string Name { get; set; }
+          public DateTime CreatedAt { get; set; }
+          public DateTime ModifiedAt { get; set; }
+      }
+      ```
 
-  - ###### 查詢資料速度: 叢集索引 > 非叢集索引
+  - ##### 建立Repository
 
-- #### 非叢集索引
+    - ```C#
+      using Microsoft.EntityFrameworkCore;
+      using System;
+      using System.Threading.Tasks;
+      
+      public class BaseRepository<TEntity> where TEntity : class, ITrackable
+      {
+          protected readonly DbContext _context;
+          protected readonly DbSet<TEntity> _dbSet;
+      
+          public BaseRepository(DbContext context)
+          {
+              _context = context ?? throw new ArgumentNullException(nameof(context));
+              _dbSet = context.Set<TEntity>();
+          }
+      
+          public virtual async Task<TEntity> InsertAsync(TEntity entity)
+          {
+              if (entity is ITrackable trackableEntity)
+              {
+                  trackableEntity.CreatedAt = DateTime.UtcNow;
+                  trackableEntity.ModifiedAt = DateTime.UtcNow;
+              }
+      
+              _context.Entry(entity).State = EntityState.Added;
+              await _dbSet.AddAsync(entity);
+              await _context.SaveChangesAsync();
+              return entity;
+          }
+      }
+      
+      public class UserRepository : BaseRepository<User>
+      {
+          private readonly IUnitOfWork _unitOfWork;
+      
+          public UserRepository(DbContext context, IUnitOfWork unitOfWork) : base(context)
+          {
+              _unitOfWork = unitOfWork;
+          }
+      
+          public override async Task<User> InsertAsync(User entity)
+          {
+              return await base.InsertAsync(entity);
+          }
+      }
+      
+      public class RoleRepository : BaseRepository<Role>
+      {
+          private readonly IUnitOfWork _unitOfWork;
+      
+          public RoleRepository(DbContext context, IUnitOfWork unitOfWork) : base(context)
+          {
+              _unitOfWork = unitOfWork;
+          }
+      
+          public override async Task<Role> InsertAsync(Role entity)
+          {
+            return await base.InsertAsync(entity);
+          }
+      }
+      ```
 
-  - ###### 資料列未根據非叢集索引進行排序與儲存
+  - ##### 建立UnitOfWork 管理Transaction
 
-  - ######  每一資料表能有249個「非叢集索引」
+    - ```C#
+      public interface IUnitOfWork : IDisposable
+      {
+          Task BeginTransactionAsync();
+          Task CommitAsync();
+          Task RollbackAsync();
+      }
+      
+      public class UnitOfWork : IUnitOfWork
+      {
+          private readonly DbContext _dbContext;
+          private DbContextTransaction _transaction;
+      
+          public UnitOfWork(DbContext dbContext)
+          {
+              _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+          }
+      
+          public async Task BeginTransactionAsync()
+          {
+              _transaction = await _dbContext.Database.BeginTransactionAsync();
+          }
+      
+          public async Task CommitAsync()
+          {
+              try
+              {
+                  await _dbContext.SaveChangesAsync();
+                  await _transaction.CommitAsync();
+              }
+              catch
+              {
+                  await RollbackAsync();
+                  throw;
+              }
+          }
+      
+          public async Task RollbackAsync()
+          {
+              await _transaction.RollbackAsync();
+          }
+      
+          public void Dispose()
+          {
+              _transaction?.Dispose();
+              _dbContext.Dispose();
+          }
+      }
+      ```
 
-  - ###### 組合欄位索引有16欄位與總和900位元組索引鍵大小的限制 ，可以使用內含資料行(INCLUDE)來規避這個限制並加速查詢作業。
+  - ##### 使用
 
-  - ###### B-Tree結構
+    - ```C#
+      // 在Startup.cs中的ConfigureServices方法中配置服務
+      services.AddDbContext<MetaDbContext>(options => options.UseSqlServer(connectionString));
+      services.AddScoped<IUnitOfWork, UnitOfWork>();
+      services.AddScoped<UserRepository>();
+      services.AddScoped<RoleRepository>();
+      
+      // 在需要使用存儲庫和工作單元的地方注入相應的服務
+      public class YourService
+      {
+          private readonly UserRepository _userRepository;
+          private readonly RoleRepository _roleRepository;
+          private readonly IUnitOfWork _unitOfWork;
+      
+          public YourService(UserRepository userRepository, RoleRepository roleRepository, IUnitOfWork unitOfWork)
+          {
+              _userRepository = userRepository;
+              _roleRepository = roleRepository;
+              _unitOfWork = unitOfWork;
+          }
+      
+          public async Task AddUserAndRoleAsync(User user, Role role)
+          {
+              await _unitOfWork.BeginTransactionAsync();
+      
+              try
+              {
+                  await _userRepository.InsertAsync(user);
+                  await _roleRepository.InsertAsync(role);
+      
+                  await _unitOfWork.CommitAsync();
+              }
+              catch (Exception ex)
+              {
+                  await _unitOfWork.RollbackAsync();
+                  throw ex;
+              }
+          }
+      }
+      ```
 
-  - ###### 非叢集索引建立的先後順序並不是很重要，因為它們不會互相影響也不會對改變資料表中實際資料的排序，但是建立叢集索引會影響實際資料排列，也會影響已建立的非叢集索引。
 
-### 跳過N筆資料
 
-- ##### OFFSET N rows 跳過n筆資料列，需搭配order by 告訴server怎麼排序資料
+### Dapper
 
-- ##### 搭配 FETCH NEXT 指定取的筆數
+- ##### 範例
 
-  - ```sql
-      SELECT *
-      FROM [ABP].[dbo].[AbpUsers]
-      order by id  /**** 一定要搭配order by 才知道排序 ***/
-      OFFSET 1 ROWS  /****跳過第一筆資料 ***/
-      FETCH NEXT 1 ROWS ONLY;/****取一筆，若沒使用Fetch Next 則取全部 ***/
+  - ```C#
+    using Dapper;
+    using System;
+    using System.Data.SqlClient;
+    using System.Threading.Tasks;
+    
+    public class UserRepository
+    {
+        private readonly string _connectionString;
+    
+        public UserRepository(string connectionString)
+        {
+            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+        }
+    
+        public async Task<int> InsertUserAsync(User user, SqlConnection connection, SqlTransaction transaction)
+        {
+            var query = "INSERT INTO Users (Name) VALUES (@Name); SELECT SCOPE_IDENTITY();";
+            return await connection.ExecuteScalarAsync<int>(query, user, transaction);
+        }
+    }
+    
+    public class RoleRepository
+    {
+        private readonly string _connectionString;
+    
+        public RoleRepository(string connectionString)
+        {
+            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+        }
+    
+        public async Task<int> InsertRoleAsync(Role role, SqlConnection connection, SqlTransaction transaction)
+        {
+            var query = "INSERT INTO Roles (Name) VALUES (@Name); SELECT SCOPE_IDENTITY();";
+            return await connection.ExecuteScalarAsync<int>(query, role, transaction);
+        }
+    }
+    
+    public class User
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+    }
+    
+    public class Role
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+    }
+    
+    class Program
+    {
+        static async Task Main(string[] args)
+        {
+            var connectionString = "YourConnectionString";
+    
+            using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+    
+            using var transaction = connection.BeginTransaction();
+    
+            var userRepository = new UserRepository(connectionString);
+            var roleRepository = new RoleRepository(connectionString);
+    
+            try
+            {
+                // 創建User和Role實體
+                var newUser = new User { Name = "John Doe" };
+                var newRole = new Role { Name = "Admin" };
+    
+                // 插入User和Role
+                var userId = await userRepository.InsertUserAsync(newUser, connection, transaction);
+                var roleId = await roleRepository.InsertRoleAsync(newRole, connection, transaction);
+    
+                // 提交交易
+                transaction.Commit();
+    
+                Console.WriteLine($"New user ID: {userId}");
+                Console.WriteLine($"New role ID: {roleId}");
+            }
+            catch (Exception)
+            {
+                // 回滾交易
+                transaction.Rollback();
+                throw;
+            }
+        }
+    }
     ```
 
-###### 
-
-## 高併發處理
-
-- ##### 高併發意味著大流量，需要運用技術手段抵抗流量的衝擊，這些手段好比操作流量，能讓流量更平穩地被系統所處理，帶給使用者更好的體驗。
-
-- ##### 名詞解釋
-
-  - ###### **QPS：** 每秒請求或查詢的數量，在網際網路領域，指每秒響應請求數；
-
-  - ###### **吞吐量：** 單位時間內處理的請求量（通常由QPS與併發數決定）；
-
-  - ###### 併發數 = QPS*平均響應時間
-
-    - ###### 假設我們當前一個http請求伺服器處理完成需要100ms（即那麼 **平均響應時間 = 100ms** ）。那麼它1s鍾可以處理10個請求。也就是說 **qps = 10**。推算出 **併發數 = 10**
-
-  - ###### **響應時間：** 從請求發出到收到響應花費的時間，例如一個系統處理一個HTTP請求需要100ms，這個100ms就是系統的響應時間；
-
-  - ###### **PV：** 綜合瀏覽量，即頁面瀏覽量或者點選量，一個訪客在24小時內訪問的頁面數量；
-
-  - ###### **UV：** 獨立訪客 ，即一定時間範圍內相同訪客多次訪問網站，只計算為一個獨立的訪客；
-
-  - ###### **頻寬：** 計算頻寬大小需要關注兩個指標，**峰值流量和頁面的平均大小** ；
-
-  - ###### **壓力測試：** 測試能承受的最大併發，測試最大承受的QPS值。
-
-### 巨集觀目標
-
-- ##### 高效能：
-
-  - ###### 效能體現了系統的並行處理能力，在有限的硬體投入下，提高效能意味著節省成本。同時，效能也反映了使用者體驗，響應時間分別是100毫秒和1秒，給使用者的感受是完全不同的。
-
-  - **效能指標**
-
-    - ##### 平均響應時間:
-
-      - ###### 最常用，但是缺陷很明顯，對於慢請求不敏感。比如1萬次請求，其中9900次是1ms，100次是100ms，則平均響應時間為1.99ms，雖然平均耗時僅增加了0.99ms，但是1%請求的響應時間已經增加了100倍。
-
-    - ##### TP90、TP99等分位值
-
-      - ###### 將響應時間按照從小到大排序，TP90表示排在第90分位的響應時間， 分位值越大，對慢請求越敏感
-
-    - ##### 吞吐量
-
-      - ###### 和響應時間呈反比，比如響應時間是1ms，則吞吐量為每秒1000次。
-
-    - ##### 通常，設定效能目標時會兼顧吞吐量和響應時間，比如這樣表述：在每秒1萬次請求下，AVG控制在50ms以下，TP99控制在100ms以下。對於高併發系統，AVG和TP分位值必須同時要考慮。
-
-    - ##### 從使用者體驗角度來看，200毫秒被認為是第一個分界點，使用者感覺不到延遲，1秒是第二個分界點，使用者能感受到延遲，但是可以接受。
-
-    - ##### 因此，對於一個健康的高併發系統，TP99應該控制在200毫秒以內，TP999或者TP9999應該控制在1秒以內。
-
-- ##### 高可用：
-
-  - ###### 表示系統可以正常服務的時間。一個全年不停機、無故障；另一個隔三差五出線上事故、宕機，使用者肯定選擇前者。另外，如果系統只能做到90%可用，也會大大拖累業務。
-
-  - ###### 為了保證可用性，通常會對服務介面進行超時設定，以防大量執行緒阻塞在慢請求上造成系統雪崩，那超時時間設定成多少合理呢？一般，我們會參考依賴服務的效能表現進行設定。
-
-  - **可用性指標**
-
-    - ###### 可用性是指系統具有較高的無故障執行能力，可用性 = 正常執行時間 / 系統總執行時間，一般使用幾個9來描述系統的可用性。
-
-    - ###### 對於高併發系統來說，最基本的要求是：保證3個9或者4個9。原因很簡單，如果你只能做到2個9，意味著有1%的故障時間，像一些大公司每年動輒千億以上的GMV或者收入，1%就是10億級別的業務影響。
-
-    - ![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/816edc4cd87445b18ff63419612d0ca9~tplv-k3u1fbpfcp-zoom-1.image)
-
-- ##### 高擴充套件：
-
-  - ###### 表示系統的擴充套件能力，流量高峰時能否在短時間內完成擴容，更平穩地承接峰值流量
-
-  - ###### 將服務設計成無狀態的，這種叢集設計保證了高擴充套件性，其實也間接提升了系統的效能和可用性。
-
-  -  **可擴充套件性指標**
-
-    - ###### 對於業務叢集或者基礎元件來說，擴充套件性 = 效能提升比例 / 機器增加比例，理想的擴充套件能力是：資源增加幾倍，效能提升幾倍。通常來說，擴充套件能力要維持在70%以上。
-
-    - ###### 但是從高併發系統的整體架構角度來看，擴充套件的目標不僅僅是把服務設計成無狀態就行了，因為當流量增加10倍，業務服務可以快速擴容10倍，但是資料庫可能就成為了新的瓶頸。
-
-    - ###### 因此，高擴充套件性需要考慮：服務叢集、資料庫、快取和訊息佇列等中介軟體、負載均衡、頻寬、依賴的第三方等，當併發達到某一個量級後，上述每個因素都可能成為擴充套件的瓶頸點。
-
-### 實踐方案
-
--  **縱向擴充套件（scale-up）**
-
-  - ##### 目標是提升單機的處理能力，方案包括
-
-    - ###### 提升單機的硬體效能：通過增加記憶體、 CPU核數、儲存容量、或者將磁碟 升級成SSD 等堆硬 件 的 方 式 來 提升 。
-
-    - ###### 提升單機的軟體效能：使用快取減少IO次數，使用併發或者非同步的方式增加吞吐量。
-
-- **橫向擴充套件（scale-out）**
-
-  - ###### 引入橫向擴充套件，通過叢集部署以進一步提高併發處理能力
-
-    - ###### 做好分層架構：
-
-      - ###### 這是橫向擴充套件的提前，因為高併發系統往往業務複雜，通過分層處理可以簡化複雜問題，更容易做到橫向擴充套件。
-
-      - ![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5fdaefaa2f434f92bcbda2173bc1246d~tplv-k3u1fbpfcp-zoom-1.image)
-
-    - ###### 各層進行水平擴充套件:
-
-      - ###### 無狀態水平擴容，有狀態做分片路由。業務叢集通常能設計成無狀態的，而資料庫和快取往往是有狀態的，因此需要設計分割槽鍵做好儲存分片，當然也可以通過主從同步、讀寫分離的方案提升讀效能。
-
-- ##### 具體實踐方案
-
-  - ###### 叢集部署，通過負載均衡減輕單機壓力。
-
-  - ###### 多級快取，包括靜態資料使用CDN、本地快取、分散式快取等，以及對快取場景中的熱點key、快取穿透、快取併發、資料一致性等問題的處理。
-
-  - ###### 分庫分表和索引優化，以及藉助搜尋引擎解決複雜查詢問題。
-
-  - ###### NoSQL資料庫的使用，比如HBase、TiDB等，但是團隊必須熟悉這些元件，且有較強的運維能力。
-
-  - ###### 非同步化，將次要流程通過多執行緒、MQ、甚至延時任務進行非同步處理。
-
-  - ###### 限流，需要先考慮業務是否允許限流（比如秒殺場景是允許的），包括前端限流、Nginx接入層的限流、服務端的限流。
-
-  - ###### 對流量進行 削峰填谷 ，通過 MQ承接流量。
-
-  - ###### 併發處理，通過多執行緒將序列邏輯並行化。
-
-  - ###### 預計算，比如搶紅包場景，可以提前計算好紅包金額快取起來，發紅包時直接使用即可。
-
-  - ###### 快取預熱 ，通過非同步 任務 提前 預熱資料到本地快取或者分散式快取中。
-
-  - ###### 減少IO次數，比如資料庫和快取的批量讀寫、RPC的批量介面支援、或者通過冗餘資料的方式幹掉RPC呼叫。
-
-  - ###### 減少IO時的資料包大小，包括採用輕量級的通訊協議、合適的資料結構、去掉介面中的多餘欄位、減少快取key的大小、壓縮快取value等。
-
-  - ###### 程式邏輯優化，比如將大概率阻斷執行流程的判斷邏輯前置、For迴圈的計算邏輯優化，或者採用更高效的演算法。
-
-  - ###### 各種池化技術的使用和池大小的設定，包括HTTP請求池、執行緒池（考慮CPU密集型還是IO密集型設定核心引數）、資料庫和Redis連線池等。
-
-  - 
-
-
-
-## NoSQL 
-
-- ##### 非關聯式資料庫，將資料儲存為類似 JSON 的文件，並對資料進行查詢，這是一個 document 資料庫模型
-
-- ##### doucment 是 key-value 的有序集合。資料庫中的每個doucment 不需要具有相同的數據結構，你可以將資料儲存在 JSON、XML文件甚至CSV文件 
-
-- ##### 優點：
-
-  - ###### 海量數據下，讀寫性能優異
-
-  - ###### 沒有固定欄位，依需求增加或減少。 
-
-  - ###### 數據間無關係，易於擴展
-
-- ##### 缺點
-
-  - ###### 無架構指導
-
-  - ###### 無歷史資料模型
-
-- ##### 使用時機
-
-  - ##### SQL
-
-    - ###### 重要的資料
-
-    - ###### 資料與資料之間有關聯性
-
-    - ###### 需要複雜的查詢
-
-  - ##### NoSQL
-
-    - ###### 資料量大
-
-      - ###### 由於 NOSQL 相較於 RDBMS 更容易做 horizontal scaling，且本身的設計就是分散式系統的設計。因此對於未來有大量擴充需求的系統，會更容易的去擴充，且擴充的成本也較低。
-
-    - ###### 單純的資料、無關聯
-
-    - ###### 即時性
-
-    - ###### 需搜集未知的資料
-
-    - ###### 經常擴充
-
-### NOSQL 比 RDBMS 快嗎?
-
-- ##### RDBMS 以及 NOSQL 在查詢上最主要的差別在於，RDBMS 可以執行較複雜的查詢，因為 RDBMS 具有關聯的特性
-
-  - ##### 例如有顧客、商品、銷售員三個資料表，分別儲存顧客的個人資料、商品的詳細價格與類別以及銷售員的個人資料，RDBMS 此時可以將三個表依照指定邏輯將他們關聯起來，建立一個含有某個顧客，從某個銷售員手上，購買的某個商品，這樣子的一個資料表。
-
-  - ##### 因此 RDBMS 在查詢上，可能需要跟很多資料表做關聯，等於是多查詢了很多個資料表，因此查詢的時間相對比較長。
-
-- ##### 對比的 NOSQL，因為不包含任何關聯，單筆資料查詢後的所有需要的資料，都存在這一筆資料中，不需要做其他額外的查詢，相較之下會比 RDBMS 快。
-
-
-
-### ngrok
-
-- ###### 設定臨時性外部Domain
-
-- [Ngrok](https://dashboard.ngrok.com/get-started/setup)
-
-- ```powershell
-  ngrok authtoken 2DIhpCpGcqlOblFVpsKxGOKU0gR_2ufySzxBRRtnwAvSqtHtW 登入授權
-  ngrok http 5000 //指定本基端Port號對外
-  ngrok http 5000 --host-header="localhost:5000"
-  //設定完成後回傳一組暫時性網址對應指定PORT
-  https://1d18-1-162-108-143.jp.ngrok.io -> http://localhost:3000 
-  ```
-
-
+    
 
 # 金流
 
