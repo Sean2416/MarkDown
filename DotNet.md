@@ -1653,13 +1653,126 @@
 
 - ##### 以領域知識為核心建立的模型，領域專家與開發人員，可以透過這個**模型**進行交流。
 
-## User Interface
+- ##### 優點
 
-- ##### 從字面意思上理解，就是 UI 介面。
+  - ###### 專注在核心業務上
 
-## 應用層 (Application Layer)
+  - ###### 保護業務邏輯，不會因技術細節 (如 db 、框架、基礎設施)而影響。
 
-- ##### `定義軟體要完成的任務，並且指揮表達領域概念的對象來解決問題。`
+  - ###### 邏輯復用方便
+
+  - ###### 把所有的Domain Logic 模組化更便於進行個別測試
+
+  - ###### 關注點分離更便於偵錯，邏輯都切成各別的核心Domain
+
+  - ###### 利用切分成微服務，Core Domain已經切開了可以個別獨立
+
+  - ###### 程式碼的意圖更加明確，職責分離
+
+- ##### 缺點
+
+  - ###### 架構複雜較難快速開發
+
+  - ###### 沒有領域專家很難很好切分
+
+  - ###### 學習成本高
+
+  - ![socre board](https://i.imgur.com/RE3pZc1.png)
+
+
+## Domain
+
+- ##### 應用程式內業務邏輯及知識所涵蓋的範圍，也就是在真實世界( Real World )中的問題，需要被軟體解決的所有範圍。
+
+- ##### Problem Domain
+
+  - ###### 現實世界的 Domain
+
+- ##### Solution Domain
+
+  - ###### 軟體世界的 Domain
+
+- ![img](https://miro.medium.com/v2/resize:fit:700/1*SOKB1vR_Co_AprQW0vXTUA.png)
+
+- ##### Sub Domain
+
+  - ###### Core (sub) Domain — 涵蓋最重要的業務邏輯。ex. EC 中的購物車系統
+
+  - ###### Generic (sub) Domain — 可能廣泛地被使用。 ex. 會員
+
+  - ###### Supporting (Sub) Domain — 能使整體 Domain 帶來幫助，但不是主要的。 ex. 權限系統
+
+- ##### Domain Modeling
+
+  - ###### 將 Problem Domain 轉換成 Solution Domain，白話一點就是將真實世界的業務範圍轉換為程式碼。Domain Modeling 應該與領域專家( Domain Expert )共同討論。
+
+  - ###### Modeling 可遵守以下幾點：
+
+    - ###### 必須按照 Domain Model 的行為來建行為模型
+
+    - ###### Model 不需要和真實世界的行為一模一樣，夠用就好
+
+    - ###### 不用一次建到位，可以循序漸進
+
+    - ###### 可以**解決問題**才是重點
+
+    - ![img](https://miro.medium.com/v2/resize:fit:700/1*NHzN_NqzGy9kxkxPU96biQ.png)
+
+      - Form 代表 Domain Model 最終會呈現的模樣
+      - Force 代表一種驅動力，使 Domain Model 的行為能符合我們得期望
+
+    - ###### 以一個星巴克的杯子( 大杯冰美式 )為例：
+
+      - Form 就代表整個已產生出的杯子
+      - Force 則有多個，例如：必須能裝大杯的容量、不需要吸管即可直接喝或是只能限定裝冰飲
+
+    - 
+
+## Bounded Context
+
+- #####  為解決方案的 Domain Models 建立了一個語意的邊界，讓在其中的 Domain Models 在資料與行為上都能符合 Ubiquitous Language 以及業務需求。
+
+- ##### 主要以**語意**與**業務能力**來重點。可以從找出那些使用相近概念的名詞與在不同情境下的會有歧異的名詞下手，同時也可以藉由分析系統功能的步驟來解析出 Bounded Context。
+
+- ##### Subdomain 你將商業需求拆解與分類的結果；而 Bounded Context 代表你實際解決問題的系統拆解與分類。
+
+- ##### 可以做為微服務拆分的依據
+
+- ##### 電商為例，以下分成三個 Bounded Context，分別為 Catalog (商品目錄)、Purchase (購買)、Identity (身份管理)。
+
+  - ![https://ithelp.ithome.com.tw/upload/images/20190921/20111997mqmU8asR5L.png](https://ithelp.ithome.com.tw/upload/images/20190921/20111997mqmU8asR5L.png)
+
+  - ```
+    e-commerce
+    ├── catalog
+    │   ├── applicationService
+    │   ├── domain
+    │   └── infrastructure
+    ├── identity
+    │   ├── applicationService
+    │   ├── domain
+    │   └── infrastructure
+    └── purchase
+        ├── applicationService
+        ├── domain
+        └── infrastructure
+    ```
+
+    
+
+## 系統架構
+
+### User Interface(Presentation Layer)
+
+- ##### 負責向使用者顯示資訊和解釋使用者的指令。
+
+- ##### 從字面意思上理解，就是 UI 介面或Controller。
+
+### 應用層 (Application Layer)
+
+- ##### 定義軟體要完成的任務，並且指揮表達領域概念的對象來解決問題。
+
+- ##### 可以操作 Domain Model 去完成業務需求，並把計算與業務邏輯交給 Domain Model。
 
 - ##### 整套協調任務、分配工作的流程，就是「應用」
 
@@ -1669,23 +1782,62 @@
 
   - ###### 「應用層」只管流程步驟，本身並不介入任務的實際執行。
 
-## 領域層 (Domain Layer)
+### 領域層 (Domain Layer)
 
 - ##### 負責實現業務邏輯
 
-- ### 實體(Entity)
+- #### 實體(Entity)
+
+  - ##### 能被識別出來的物件 有 id。 Entity 的狀態會在其生命週期中持續追蹤其變化。
 
   - ##### 包含ID的物件，通常代表資料庫的實體
 
-- ### 值對象(Value Object)
+- #### 值對象(Value Object)
+
+  - ##### 無 identity 概念、狀態不可變更的物件 object，用於描述某個事物的特徵。
 
   - ##### 類似Entity，不包含ID
 
-- ### 服務(Service)
+- #### **聚合 Aggregate**
 
-  - ###### 領域中的動作，不屬於任何對象，卻代表了一個重要行為，此種行為通常會跨越若干的對象。將此行為加入到任一對象中會破壞對象。
+  - ##### 相關業務目標的物件 包含實體與值物件 所組成，一個聚合即為一個 Transaction 的邊界。並且會在其中選擇一個實體 作為聚合根 Aggregate Root ，所有與外界的溝通都必須交由聚合根來負責。
 
-## 範例
+  - ##### 比如一張訂單由訂單品項、折扣、金流、物流、發票等要素組成，但一旦你修改了一個訂單品項，你必須連帶地重新計算折扣(滿額折扣)、金流(刷退重新付款)、物流(金額限制)、發票(廢除後重新開立)，甚至可能還會影響會員等級的升降。
+
+    - ![https://ithelp.ithome.com.tw/upload/images/20191002/20111997oBvOQAM28D.png](https://ithelp.ithome.com.tw/upload/images/20191002/20111997oBvOQAM28D.png)
+
+    - ##### 若是我們將這些物件都放入 Aggregate 的邊界內，然後指定 `Order` 這個 Entity 作為 Aggregate Root，我們的模型會變成:
+
+    - ![https://ithelp.ithome.com.tw/upload/images/20191002/20111997CpU3Q8hRGE.png](https://ithelp.ithome.com.tw/upload/images/20191002/20111997CpU3Q8hRGE.png)
+
+    - ##### 可以看到，不論是何種狀態變更，都必須先經過 Aggregate Root `Order` 才能進入跟裡面的物件做互動，而 Aggregate Root 不但可以很好地處理這項需求，也可以同時遵守「資料變化時必須保持一致的規則」
+
+    - ##### 假如今天訂單品項修改數量僅會單純地影響庫存變化
+
+      - ###### 原始流程OrderItem.update() → Order.check() → Order.update() → Inventory.update()，
+
+      - ###### 使用 Aggregate，那就會變成 Order.updateItem() → Inventory.update()
+
+- #### 服務(Service)
+
+  - ##### 當有某個業務邏輯職責**無法被歸類**到任何一個領域物件上時，會將以領域服務承載這個職責。處於應用服務與領域物件之間。
+
+  - ##### 領域中的動作，不屬於任何對象，卻代表了一個重要行為，此種行為通常會跨越若干的對象。將此行為加入到任一對象中會破壞對象。
+
+- #### **倉儲 Repository**
+
+  - ##### 保存領域物件的狀態的設計模式，可以轉接資料庫、 ORM 或檔案系統。一般使用上會考慮一個聚合對上一個倉儲。
+
+  - ##### **分離領域模型與資料模型**，你可以更輕鬆的擴展領域模型或是優化資料庫操作的效能，而不用怕互相影響。
+
+  - 
+
+- ### **領域事件 Domain Event**
+
+  - ##### 某件領域專家在乎的事件，通常用於聚合間的溝通。
+
+
+### 範例
 
 - ##### 以訂單流程為例
 
