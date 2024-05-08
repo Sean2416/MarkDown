@@ -3214,7 +3214,175 @@ public class HomeController : Controller
     }
     ```
 
+
+
+
+# Struct
+
+- |                   | class                    | struct               |
+  | ----------------- | ------------------------ | -------------------- |
+  | 繼承(inheritance) | 可以                     | 不可以               |
+  | 介面(interface)   | 可以                     | 可以                 |
+  | NULL              | 可以為null               | 不可以為null         |
+  | 型態              | 參考型態(reference type) | 實值型態(value type) |
+  | Memory Allocation | Heap                     | Stack                |
+
+- #### 實值型別(value type)
+
+  - ##### 如常用的內建資料型別，例如: int、float、bool都是實值型別 (object和string除外)。簡而言之，我們在使用這些實值型別時，例如傳遞參數，是複製一份相同的資料後，再對資料進行處理。
+
+- #### 參考型別(reference type)
+
+  - ##### 直接對記憶體的位置。進行處理。例如: 上述除外的object和string都是參考型別。
+
+- #### Equals
+
+  - ##### Struct為實質型別，比較內部屬性值是否相同
+
+  - ```C#
+     public struct StructType
+     {
+         public int Id { get; set; }
+         public string Name { get; set; }
+         public ClassA a { get; set; }
+     }
     
+       StructType s2 = new StructType();
+       s2.Name = "Mike";
+       s2.Id = 2;
+       StructType s1 = new StructType();
+       s1.Name = "Mike";
+       s1.Id = 2;
+    
+       var s = s1.Equals(s2); //true
+    ```
+
+  - #### Class為參考型別，比較記憶體位置
+
+    - ```C#
+      public struct StructType
+      {
+         public int Id { get; set; }
+         public string Name { get; set; }
+         public ClassA a { get; set; }
+      }
+      
+      StructType s2 = new StructType();
+      s2.Name = "Mike";
+      s2.Id = 2;
+      s2.a = new ClassA();
+      StructType s1 = new StructType();
+      s1.Name = "Mike";
+      s1.Id = 2;
+      s1.a = new ClassA();
+      var s = s1.Equals(s2);
+      //因為兩個Class對應記憶體位置不同，故結果為False
+      ```
+
+    - ![img](https://dotblogsfile.blob.core.windows.net/user/%E4%B9%9D%E6%A1%83/dc60b613-5aab-4031-b07e-ba95b3eb8c59/1519278342_30764.png)
+
+# Record
+
+- #### C#9 新增，主要用途是封裝資料，特別是不可改變的資料（immutable data）。
+
+- #### 宣告: ` public record Student(int Id, string Name);`
+
+  - ##### 參數會由編譯器自動建立對應的屬性，而且還會加入一個帶有相同參數列的建構式
+
+  - ##### 建立執行個體的時候也可以加上初始設定式，但是傳入建構式的參數依然不可少
+
+    - ```C#
+      Student stu1 = new (1, "Mike") { Id=2 }; // OK!
+      Student stu2 = new ();              // 編譯失敗! 
+      Student stu3 = new () { Id=3 };     // 編譯失敗! 
+      ```
+
+  - ##### 編譯器產生的程式碼(編譯時會轉換成Class)
+
+    - ```C#
+      //宣告型別的地方（第 1 行），record 變成了 class，而且實作了 IEquatable<T> 介面，以便比對兩個物件是否相等
+      class Student : IEquatable<Student>
+      {
+          public int Id { get; init; } 
+          public string Name { get; init; }
+          
+          //加入一個基礎建構式
+          public Student(int Id, string Name)
+          {
+              this.Id = Id;
+              this.Name = Name;
+          }
+          
+          //加入一個拷貝建構式（copy constructor）
+          protected Student(Student orginal)
+          {
+              this.Id = original.Id;
+              this.Name = original.Name;
+          }
+          
+          //加入一個特殊命名的 Clone 方法
+          public virtual Student <Clone>$() 
+              => new Student(this);
+              
+          //分解式
+          public void Deconstruct(...) { ... }
+          
+          public override string ToString() { ... }
+          // 省略其他方法，包括改寫的 Equals、GetHashCode 等等。
+      }
+      ```
+
+    - #### ToString
+
+      - ##### Record編譯後會產生ToString方法，將整個物件的內容——包括型別名稱、公開屬性的名稱與值——全兜成一個容易閱讀的字串，方便我們隨時觀察或除錯物件的屬性值
+
+      - ###### Class的ToString()會傳回該類別的名稱
+
+        - `DotNet8.Controllers.WeatherForecastController+MyClass`
+
+      - ###### Record.Tostring
+
+        - `Student { Id = 1, Name = Mike }`
+
+    - #### Equals
+
+      - ##### .NET 參考型別所提供的預設 `Equals` 方法僅只是單純比較兩個變數是否指向同一個物件（即記憶體為址是否相同），因此兩個類別雖然內容相同但因為記憶體位置不同因此判斷為不同物件
+
+      - ##### Record在編譯時會自動改寫了 `Equals` 方法，而且只要兩個比較對象的內容完全一樣（所有屬性值皆相等）即視為相等。
+
+        - ```C#
+          MyClass obj1 = new() { Id=1, Name="Mike" };
+          MyClass obj2 = new() { Id=1, Name="Mike" };
+          Console.WriteLine($"兩物件是否相等: {obj1.Equals(obj2)}");//false
+          
+          Student stu1 = new (1, "Mike");
+          Student stu2 = new(2, "AAA") { Id=1,Name = "Mike"};
+          Console.WriteLine($"兩物件是否相等: {stu1.Equals(stu2)}");//true
+          ```
+
+    - #### Deconstruct
+
+      - ```C#
+        class Student : IEquatable<Student>
+        {     
+            public void Deconstruct(out int Id, out string Name)
+            {
+                Id = this.Id;
+                Name = this.Name;
+            }
+            // 其餘省略
+        }
+        
+        Student stu = new (1, "Mike");
+        
+        var (id, name) = stu;		
+        Console.WriteLine($"id={id}, name={name}");
+        //id=1, name=Mike
+        ```
+
+
+
+
 
 # 金流
 
