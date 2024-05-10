@@ -1,0 +1,16 @@
+# my-first-pod.yaml
+apiVersion: v1
+kind: Pod
+#只能包含K8s預設的參數
+metadata:
+  name: my-pod
+  #可以設定自己需要的參數
+  labels:
+    app: myapp
+    type: test
+spec:
+  containers:
+  - name: test
+    image: sean2416/test:1.0.0
+    ports:
+    - containerPort: 8080

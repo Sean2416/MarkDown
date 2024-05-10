@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  type: NodePort
+  ports:
+    - name: http-test
+      port: 8080  #對應Container Port
+      protocol: TCP
+      nodePort: 30000
+  selector:
+    app: myapp

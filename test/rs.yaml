@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: myapp-rs
+  labels:
+    app: myapp
+    type:  frontend
+spec:
+  #定義Pod的數量
+  replicas: 3
+  selector:
+    matchExpressions:
+      - {key: type, operator: In, values: [frontend]}
+  #底下格式參照Pod的架構
+  template:
+    metadata:
+      name: myapp-pod
+      labels:
+        app: myapp
+        type:  frontend
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
