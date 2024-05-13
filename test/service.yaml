@@ -6,8 +6,11 @@ spec:
   type: NodePort
   ports:
     - name: http-test
-      port: 8080  #對應Container Port
-      protocol: TCP
+      #建立好的 Service 要以哪個 port 連接到 Pod 上。
+      port: 8080
+       #對應Pod Container Port
+      targetPort: 8080 
+       #對應外部連接的Port
       nodePort: 30000
   selector:
     app: myapp
