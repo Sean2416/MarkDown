@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: app-pv1
+spec:
+  storageClassName: sc-001
+  volumeMode: Filesystem
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /data
+    type: DirectoryOrCreate

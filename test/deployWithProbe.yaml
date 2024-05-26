@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deploy
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-pod
+  template:
+    metadata:
+      labels:
+        app: app-pod
+    spec:
+      containers:
+      - name: app-container
+        image: uopsdod/k8s-hostname-amd64-beta:v1
+        ports:
+        - containerPort: 8080
+        #啟動時偵測一次
+        startupProbe:
+          httpGet:
+            path: /healthcheck
+            port: 80
+          #何時開始啟動Startup Probe
+          initialDelaySeconds: 0
+          #等待多久的響應時間，超過視為Time out
+          timeoutSeconds: 1
+          #間隔10秒監控一次
+          periodSeconds: 10
+          # 成功幾次算成功
+          successThreshold: 1
+          # 失敗幾次算是真的失敗
+          failureThreshold: 10
+        #定時偵錯直到POD消失
+        livenessProbe:
+          httpGet:
+            path: /healthcheck
+            port: 80
+          #何時開始啟動Startup Probe
+          initialDelaySeconds: 0
+          #等待多久的響應時間，超過視為Time out
+          timeoutSeconds: 1
+          #間隔10秒監控一次
+          periodSeconds: 3
+          # 成功幾次算成功
+          successThreshold: 1
+          # 失敗幾次算是真的失敗
+          failureThreshold: 5
+        #監測外部服務連線狀態(如db、其他API)
+        readinessProbe:
+          httpGet:
+            path: /healthcheck_dependency
+            port: 80
+          #何時開始啟動Startup Probe
+          initialDelaySeconds: 0
+          #等待多久的響應時間，超過視為Time out
+          timeoutSeconds: 1
+          #間隔10秒監控一次
+          periodSeconds: 3
+          # 成功幾次算成功
+          successThreshold: 5
+          # 失敗幾次算是真的失敗
+          failureThreshold: 5
